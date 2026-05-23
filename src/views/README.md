@@ -1,0 +1,1 @@
+Contains the sfc per page. Each folder is name after the page for which it holds vue files
