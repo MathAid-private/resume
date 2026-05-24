@@ -1,7 +1,8 @@
-import { GLOBAL_ERROR_EVENT } from "@/constants/global-state.manager.const";
-
-import type { FunctionLike } from "@/modules/util.dto";
 import type { App } from "vue";
+
+import type { FunctionLike } from "@/modules";
+
+import { GLOBAL_ERROR_EVENT } from "@/constants";
 
 export enum PlatformManagerExecutionState {
   IDLE = 0,

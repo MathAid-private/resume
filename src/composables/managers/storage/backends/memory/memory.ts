@@ -1,0 +1,361 @@
+import type {
+  CanonicalKey,
+  CapabilityResult,
+  EvictionPolicy,
+  IStorageBackend,
+  ITransaction,
+  QuotaEstimate,
+  ReadOptions,
+  StorageEnvelope,
+  StorageQuery,
+  TransactionStrength,
+  WriteOptions
+} from '../../storage.types'
+import { useMemoryStore, type MemoryStore } from './memory.store'
+
+import { MemoryTransaction, type BufferedOp } from './transaction'
+
+/**
+ * Memory backend
+ *
+ * Stores values as-is (no string encoding, no encryption) in a Map.
+ * TRaw is `unknown` because the pipeline skips serialization/encryption for
+ * this backend and stores the already-typed, already-validated value directly.
+ *
+ * Lifecycle intent:
+ *   - Used as a last-resort fallback when all disk-backed backends fail.
+ *   - Also used as a write-through/read-through cache layer above other
+ *     backends (that use case is handled at the pipeline layer, not here).
+ *   - Data is intentionally lost on page reload — this is by design.
+ */
+export class MemoryBackend implements IStorageBackend<unknown> {
+
+  private store: MemoryStore
+  constructor() {
+    this.store = useMemoryStore()
+  }
+  get kind() { return this.store.kind; }
+  get transactionStrength() { return this.store.transactionStrength; }
+  get priority() { return this.store.priority }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  async probe(): Promise<CapabilityResult> {
+    // Memory is always available — there's nothing that can go wrong.
+    const start = performance.now()
+    const testKey = '__probe__' as CanonicalKey
+    this.store._store.set(testKey, {
+      payload: 'ok', schema_version: 0, written_at: Date.now(),
+      expires_at: null, weight: 0, backend: 'memory',
+    })
+    this.store._store.delete(testKey)
+    return { available: true, latency: performance.now() - start }
+  }
+
+  async initialize(): Promise<void> {
+    this.store._initialized = true
+  }
+
+  async close(): Promise<void> {
+    // Flush all pending transactions (rollback — we cannot commit to nowhere).
+    for (const tx of this.store._transactions.values()) {
+      await tx.rollback()
+    }
+    this.store._transactions.clear()
+    this.store._store.clear()
+    this.store._readCount.clear()
+    this.store._initialized = false
+  }
+
+  // ── Core CRUD ─────────────────────────────────────────────────────────────
+
+  async write(
+    key: CanonicalKey,
+    envelope: StorageEnvelope<unknown>,
+    options?: WriteOptions,
+  ): Promise<void> {
+    this._assertInitialized()
+
+    if (options?.transactionId) {
+      const tx = this._getTransaction(options.transactionId)
+      tx.bufferWrite(key, envelope)
+      return
+    }
+
+    this.store._store.set(key, envelope)
+  }
+
+  async read(
+    key: CanonicalKey,
+    options?: ReadOptions,
+  ): Promise<StorageEnvelope<unknown> | null> {
+    this._assertInitialized()
+
+    const entry = this.store._store.get(key) ?? null
+    if (entry === null) return null
+
+    const respectTtl = options?.respectTtl ?? true
+    if (respectTtl && this._isExpired(entry)) {
+      this.store._store.delete(key)
+      this.store._readCount.delete(key)
+      return null
+    }
+
+    // Track access for LFU eviction
+    this.store._readCount.set(key, (this.store._readCount.get(key) ?? 0) + 1)
+
+    return entry
+  }
+
+  async delete(
+    key: CanonicalKey,
+    options?: { transactionId?: string; signal?: AbortSignal },
+  ): Promise<void> {
+    this._assertInitialized()
+
+    if (options?.transactionId) {
+      const tx = this._getTransaction(options.transactionId)
+      tx.bufferDelete(key)
+      return
+    }
+
+    this.store._store.delete(key)
+    this.store._readCount.delete(key)
+  }
+
+  async clear(
+    prefix?: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<void> {
+    this._assertInitialized()
+
+    if (!prefix) {
+      this.store._store.clear()
+      this.store._readCount.clear()
+      return
+    }
+
+    for (const key of this.store._store.keys()) {
+      if (key.startsWith(prefix)) {
+        this.store._store.delete(key)
+        this.store._readCount.delete(key)
+      }
+      options?.signal?.throwIfAborted()
+    }
+  }
+
+  // ── Query ─────────────────────────────────────────────────────────────────
+
+  async query(
+    q: StorageQuery,
+    options?: { signal?: AbortSignal },
+  ): Promise<Array<{ key: CanonicalKey; envelope: StorageEnvelope<unknown> }>> {
+    this._assertInitialized()
+
+    const excludeExpired = q.excludeExpired ?? true
+    const results: Array<{ key: CanonicalKey; envelope: StorageEnvelope<unknown> }> = []
+
+    for (const [key, envelope] of this.store._store) {
+      options?.signal?.throwIfAborted()
+
+      if (q.prefix && !key.startsWith(q.prefix)) continue
+      if (excludeExpired && this._isExpired(envelope)) {
+        // Lazy TTL sweep
+        this.store._store.delete(key)
+        this.store._readCount.delete(key)
+        continue
+      }
+      if (q.schema_version !== undefined && envelope.schema_version !== q.schema_version) continue
+
+      results.push({ key, envelope })
+    }
+
+    const offset = q.offset ?? 0
+    const limit  = q.limit  ?? results.length
+
+    return results.slice(offset, offset + limit)
+  }
+
+  async count(prefix?: string): Promise<number> {
+    this._assertInitialized()
+    if (!prefix) return this.store._store.size
+    let n = 0
+    for (const key of this.store._store.keys()) {
+      if (key.startsWith(prefix)) n++
+    }
+    return n
+  }
+
+  // ── Transactions ──────────────────────────────────────────────────────────
+
+  async beginTransaction(strength?: TransactionStrength): Promise<ITransaction> {
+    this._assertInitialized()
+
+    // Memory can only offer best-effort. Reject if the caller demands more.
+    if (strength && strength !== 'best-effort') {
+      throw new Error(
+        `[MemoryBackend] Requested transaction strength "${strength}" but ` +
+        `this backend only supports "${this.transactionStrength}". Use IndexedDB for stronger guarantees.`
+      )
+    }
+
+    const tx = new MemoryTransaction<unknown>(
+      this.store._store,
+      (ops: BufferedOp<unknown>[]) => this._applyOps(ops),
+    )
+    this.store._transactions.set(tx.id, tx)
+    return tx
+  }
+
+  // ── Quota ─────────────────────────────────────────────────────────────────
+
+  async estimateQuota(): Promise<QuotaEstimate> {
+    this._assertInitialized()
+
+    // Rough heuristic: JSON-serialize every value and measure the string length
+    // as a proxy for bytes. Real byte usage is higher due to V8 object overhead.
+    let used = 0
+    for (const [key, envelope] of this.store._store) {
+      try {
+        used += key.length * 2  // UTF-16 characters
+        used += JSON.stringify(envelope).length * 2
+      } catch {
+        // Non-serializable value — estimate conservatively
+        used += 256
+      }
+    }
+
+    // In-memory "quota" is intentionally unconstrained, but we surface a
+    // soft cap based on available heap (not precisely measurable in browsers).
+    const available = 50 * 1024 * 1024  // 50 MB soft cap
+
+    return {
+      used,
+      available: Math.max(0, available - used),
+      ratio: Math.min(1, used / available),
+    }
+  }
+
+  async evict(
+    targetBytes: number,
+    policy: EvictionPolicy,
+    comparator?: (
+      a: { key: CanonicalKey; envelope: StorageEnvelope<unknown> },
+      b: { key: CanonicalKey; envelope: StorageEnvelope<unknown> },
+    ) => number,
+  ): Promise<number> {
+    this._assertInitialized()
+
+    // Step 1: sweep expired entries first (free eviction)
+    let freed = 0
+    for (const [key, envelope] of this.store._store) {
+      if (this._isExpired(envelope)) {
+        this.store._store.delete(key)
+        this.store._readCount.delete(key)
+        freed++
+      }
+    }
+
+    if (freed >= targetBytes) return freed  // Quota satisfied by TTL sweep alone
+
+    // Step 2: sort remaining entries by weight (ascending = candidates first)
+    // then apply tie-breaking via the eviction policy
+    const candidates = [...this.store._store.entries()].map(([key, envelope]) => ({ key, envelope }))
+
+    candidates.sort((a, b) => {
+      // Primary: lower weight = evict first
+      const weightDiff = a.envelope.weight - b.envelope.weight
+      if (weightDiff !== 0) return weightDiff
+
+      // Tie-break
+      if (policy === 'user' && comparator) {
+        return comparator(a, b)
+      }
+      return this._defaultTieBreak(a, b, policy)
+    })
+
+    // Step 3: evict until target is met or store is empty
+    for (const { key } of candidates) {
+      if (freed >= targetBytes) break
+      this.store._store.delete(key)
+      this.store._readCount.delete(key)
+      freed++
+    }
+
+    return freed
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  private _assertInitialized() {
+    if (!this.store._initialized) {
+      throw new Error('[MemoryBackend] Backend has not been initialized. Call initialize() first.')
+    }
+  }
+
+  private _isExpired(envelope: StorageEnvelope<unknown>): boolean {
+    return envelope.expires_at !== null && envelope.expires_at < Date.now()
+  }
+
+  private _getTransaction(id: string): MemoryTransaction<unknown> {
+    const tx = this.store._transactions.get(id)
+    if (!tx) {
+      throw new Error(`[MemoryBackend] No active transaction with id "${id}".`)
+    }
+    return tx as MemoryTransaction<unknown>
+  }
+
+  /**
+   * Apply a committed batch of buffered ops atomically.
+   * Called by MemoryTransaction.commit().
+   * Single-threaded JS means this truly is atomic.
+   */
+  private _applyOps(ops: BufferedOp<unknown>[]): void {
+    for (const op of ops) {
+      switch (op.kind) {
+        case 'write':
+          this.store._store.set(op.key!, op.envelope!)
+          break
+        case 'delete':
+          this.store._store.delete(op.key!)
+          this.store._readCount.delete(op.key!)
+          break
+        case 'clear':
+          if (!op.prefix) {
+            this.store._store.clear()
+            this.store._readCount.clear()
+          } else {
+            for (const key of this.store._store.keys()) {
+              if (key.startsWith(op.prefix)) {
+                this.store._store.delete(key)
+                this.store._readCount.delete(key)
+              }
+            }
+          }
+          break
+      }
+    }
+    // Remove the transaction from the active set after commit
+  }
+
+  private _defaultTieBreak(
+    a: { key: CanonicalKey; envelope: StorageEnvelope<unknown> },
+    b: { key: CanonicalKey; envelope: StorageEnvelope<unknown> },
+    policy: EvictionPolicy,
+  ): number {
+    switch (policy) {
+      case 'lru':
+        // Oldest written_at first
+        return a.envelope.written_at - b.envelope.written_at
+      case 'fifo':
+        return a.envelope.written_at - b.envelope.written_at
+      case 'lfu': {
+        const aReads = this.store._readCount.get(a.key) ?? 0
+        const bReads = this.store._readCount.get(b.key) ?? 0
+        return aReads - bReads
+      }
+      default:
+        return 0
+    }
+  }
+}

@@ -22,12 +22,12 @@
  *
  * ### Choosing a Strategy
  *
- * | Scenario                                      | Recommended Strategy                              |
- * |-----------------------------------------------|---------------------------------------------------|
- * | General-purpose transient faults              | `EXPONENTIAL`                                     |
+ * | Scenario                                      | Recommended Strategy                               |
+ * |-----------------------------------------------|----------------------------------------------------|
+ * | General-purpose transient faults              | `EXPONENTIAL`                                      |
  * | Tunable growth rate                           | `MULTIPLICATIVE_EXPONENTIAL`                       |
- * | Predictable, human-readable wait times        | `LINEAR`                                          |
- * | Many clients retrying the same endpoint       | `EXPONENTIAL_WITH_JITTER` or `DECORRELATED_JITTER`   |
+ * | Predictable, human-readable wait times        | `LINEAR`                                           |
+ * | Many clients retrying the same endpoint       | `EXPONENTIAL_WITH_JITTER` or `DECORRELATED_JITTER` |
  * | Large distributed fleets (AWS-style)          | `DECORRELATED_JITTER`                              |
  *
  * @enum {string}

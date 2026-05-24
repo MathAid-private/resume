@@ -1,6 +1,6 @@
-import { reactive, ref } from "vue"
-
 import type { Router } from "vue-router";
+
+import { reactive, ref } from "vue"
 
 import { defineStore } from "pinia"
 

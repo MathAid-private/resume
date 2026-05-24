@@ -1,4 +1,3 @@
-
 export const TEST_IN_PRIVATE = "private_mode_test";
 export const TEST_IN_PRIVATE_STORAGE_KEY = "private_test";
 

@@ -13,13 +13,12 @@ export interface IFormField<V = string, F = V> {
   value?: V;
 }
 
-export type IFormDataSchema<T extends Record<string, unknown>> =
-  Record<keyof T, IFormField>
+export type IFormDataSchema<T extends Record<string, unknown>> = Record<keyof T, IFormField>;
 
 export interface IFormOperative<T extends Record<string, unknown>> {
   errors: Partial<Record<keyof T, string>>;
   formObject: {
-    [K in keyof T]: IFormField<T[K], string>
+    [K in keyof T]: IFormField<T[K], string>;
   }
   schema: Record<keyof T, IFormFieldConfig>;
 }

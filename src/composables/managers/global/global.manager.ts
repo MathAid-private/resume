@@ -1,17 +1,17 @@
-import { GLOBAL_ERROR_EVENT } from "@/constants/global-state.manager.const";
+import { GLOBAL_ERROR_EVENT } from "@/constants";
 
-import type { FunctionLike } from "@/modules/util.dto";
+import type { FunctionLike } from "@/modules";
 import type { App } from "vue";
 import type { PlatformErrorEvent } from "../manager.dto";
 import type { IGlobalEventMap } from "./global.dto";
 
-import { detectBrowser } from "@/libs/user-agent";
+import { detectBrowser } from "@/libs";
 import { runCleanup, tryRun } from "../util";
 
 import { useGlobalStore } from "./global.store";
 
-import { usePortal } from "./portal/portal";
-import { useTab } from "./tab/tab";
+import { usePortal } from "./portal";
+import { useTab } from "./tab";
 
 function detectWorkers() {
   return {
@@ -19,6 +19,13 @@ function detectWorkers() {
     sharedWorker: typeof SharedWorker !== 'undefined',
     serviceWorker: typeof navigator !== 'undefined' && 'serviceWorker' in navigator
   };
+}
+
+function detectNotifications() {
+  return {
+    // BroadcastChannel is widely supported but not in every environment
+    broadcastChannel: typeof BroadcastChannel !== 'undefined',
+  }
 }
 
 export function useGlobalManager() {
@@ -39,18 +46,20 @@ export function useGlobalManager() {
     defineEvent(GLOBAL_ERROR_EVENT, onManagerError)
   }
   async function scaffoldSupportTable() {
-    const detectedWorkers = detectWorkers()
+    const workers = detectWorkers()
+    const notifications = detectNotifications()
+
     store.support.workers = {
-      service: {
-        native: detectedWorkers.serviceWorker
-      },
-      shared: {
-        native: detectedWorkers.sharedWorker
-      },
-      web: {
-        native: detectedWorkers.webWorker
-      }
+      service: { native: workers.serviceWorker },
+      shared:  { native: workers.sharedWorker },
+      web:     { native: workers.webWorker },
     }
+
+    // Expose BroadcastChannel availability so strategy selection can use it
+    store.support.notification = {
+      broadcastChannel: { native: notifications.broadcastChannel },
+    }
+
     store.support.userAgent = await detectBrowser()
   }
 

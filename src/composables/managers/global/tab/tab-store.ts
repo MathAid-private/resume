@@ -2,7 +2,7 @@ import { reactive, ref, shallowReactive } from "vue";
 
 import { defineStore } from "pinia";
 
-import type { FunctionLike } from "@/modules/util.dto";
+import type { FunctionLike } from "@/modules";
 import type { ITabCountStrategy, ITabCountResponseData } from "./tab.types";
 
 export function composeTabStore<M extends object = Record<string, unknown>>() {

@@ -1,7 +1,9 @@
 import type { GlobalStore } from "../global.store";
-import { useTabCount } from "./tab-count";
-import { useTabStore } from "./tab-store";
 import type { TabCountOperative, TabStore } from "./tab.types";
+
+import { useTabStore } from "./tab-store";
+
+import { useTabCount } from "./tab-count";
 
 export function useTab() {
   let store: TabStore | null = null;
@@ -17,10 +19,12 @@ export function useTab() {
     tabCount.preInitialize(state)
   }
   async function bootstrap() {
-    const cleanup = tabCount?.bootstrap({
-      getOrCreateTabId,
-      store: store!
-    })
+    const operative = { getOrCreateTabId, store: store! }
+
+    // bootstrap() sets up event listeners and the strategy's internal state.
+    // It does NOT call show() itself — we call show() once here explicitly
+    // so there is exactly one registration per bootstrap.
+    const cleanup = tabCount?.bootstrap(operative)
     await show()
     return cleanup
   }
@@ -36,13 +40,23 @@ export function useTab() {
       store: store!
     })
   }
-  function stop() {}
+  function stop() {
+    return hide()
+  }
   async function restart() {
+    await hide()
     await bootstrap()
-    await show()
   }
 
-  /** Generates or reuses a stable ID for this tab instance. */
+  /**
+   * Generates or reuses a stable identity for this browser tab.
+   *
+   * Strategy:
+   * - `window.name` survives same-tab navigations (including back/forward).
+   * - `sessionStorage` survives page refreshes.
+   * - When both agree we have a confirmed identity from a previous load.
+   * - When they disagree (duplicated tab, first visit) we mint a new UUID.
+   */
   function getOrCreateTabId(): string {
       const STORAGE_KEY = "latest_tab_id";
 
@@ -65,8 +79,8 @@ export function useTab() {
 
   return {
     getOrCreateTabId,
-    store: store!,
-    tabCount: tabCount!,
+    get store() { return store! },
+    get tabCount() { return tabCount! },
     show,
     bootstrap,
     hide,

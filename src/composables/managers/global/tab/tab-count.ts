@@ -8,46 +8,81 @@ import { useBroadcastStrategy, useSequentialStrategy, useWorkerStrategy } from "
 
 export function useTabCount(tab: TabOperative) {
 
+  // Track whether this tab has already been counted so we never double-increment
+  tab.store.metadata.registered = false
+
   function preInitialize(globalState: GlobalStore) {
-    // if(globalState.support.workers?.shared?.native) {
-    //   // load worker
-    //   tab.store.strategy = useWorkerStrategy()
-    // } else if(globalState.support.notification?.broadcastChannel?.native) {
-    //   // load BroadcastChannel-type
-      // tab.store.strategy = useBroadcastStrategy()
-    // } else {
-    //   // run cloudflare's rv store
+    if(globalState.support.workers?.shared?.native) {
+      // load worker
+      tab.store.strategy = useWorkerStrategy()
+    } else if(globalState.support.notification?.broadcastChannel?.native) {
+      // load BroadcastChannel-type
+      tab.store.strategy = useBroadcastStrategy()
+    } else {
+      // run cloudflare's rv store
       tab.store.strategy = useSequentialStrategy()
-    // }
+    }
   }
   function bootstrap(tab: TabOperative) {
     const cleanup = tab.store.strategy?.bootstrap(tab)
-    async function tabShow() { await show(tab) }
-    async function tabHide() { await hide(tab) }
-    async function onVisible() {
-      if(document.hidden || document.visibilityState === 'hidden') await tabHide()
-      else if(document.visibilityState === 'visible') await tabShow()
-    }
-    // async function tabClose(e: BeforeUnloadEvent) { e.preventDefault(); await tabHide(); e. }
-    // window.addEventListener('pagereveal', tabShow)
-    // window.addEventListener('pageshow', tabShow)
-    // window.addEventListener('pagehide', tabHide)
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('beforeunload', tabHide)
-    return async (app: App<HTMLBodyElement>) => {
-      await runCleanup(cleanup!, app)
 
-      // window.removeEventListener('pagereveal', tabShow)
-      // window.removeEventListener('pageshow', tabShow)
-      // window.removeEventListener('pagehide', tabHide)
-      window.removeEventListener('beforeunload', tabHide)
-      document.removeEventListener('visibilitychange', onVisible)
+    // Avoid closing over a stale `registered` flag across strategy switches
+    let localRegistered = false
+
+    async function tabShow() {
+      if (localRegistered) return
+      localRegistered = true
+      await show(tab)
+    }
+
+    async function tabHide() {
+      if (!localRegistered) return
+      localRegistered = false
+      await hide(tab)
+    }
+
+    // async function onVisibilityChange() {
+    //   if (document.visibilityState === 'hidden') {
+    //     await tabHide()
+    //   } else if (document.visibilityState === 'visible') {
+    //     await tabShow()
+    //   }
+    // }
+
+    // pagehide fires reliably before the page is torn down (unlike beforeunload)
+    // and also covers BFCache navigation (back/forward).
+    // pageshow fires when the page is restored from BFCache.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    function onPageShow(e: PageTransitionEvent) {
+      // e.persisted = true means page was restored from BFCache
+      void tabShow()
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    function onPageHide(e: PageTransitionEvent) {
+      void tabHide()
+    }
+
+    window.addEventListener('pageshow', onPageShow)
+    window.addEventListener('pagehide', onPageHide)
+    // document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return async (app: App<HTMLBodyElement>) => {
+      window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('pagehide', onPageHide)
+      // document.removeEventListener('visibilitychange', onVisibilityChange)
+
+      if (cleanup) await runCleanup(cleanup, app)
     }
   }
+
   function hide(tab: TabOperative) {
+    tab.store.metadata.registered = false
     return tab.store.strategy?.hide(tab)
   }
+
   function show(tab: TabOperative) {
+    tab.store.metadata.registered = true
     return tab.store.strategy?.show(tab)
   }
   /**
