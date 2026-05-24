@@ -33,7 +33,7 @@ export class MemoryTransaction<TRaw> implements ITransaction {
 
   constructor(
     private readonly _store: Map<CanonicalKey, StorageEnvelope<TRaw>>,
-    private readonly _onCommit: (ops: BufferedOp<TRaw>[]) => void,
+    private readonly _onCommit: (txId: string, ops: BufferedOp<TRaw>[]) => void,
   ) {
     this.id = uuidV4()
   }
@@ -60,7 +60,7 @@ export class MemoryTransaction<TRaw> implements ITransaction {
   async commit(): Promise<void> {
     this._assertOpen()
     this._settled = true
-    this._onCommit(this._ops)
+    this._onCommit(this.id, this._ops)
   }
 
   async rollback(): Promise<void> {

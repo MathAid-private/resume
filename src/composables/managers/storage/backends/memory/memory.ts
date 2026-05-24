@@ -201,7 +201,7 @@ export class MemoryBackend implements IStorageBackend<unknown> {
 
     const tx = new MemoryTransaction<unknown>(
       this.store._store,
-      (ops: BufferedOp<unknown>[]) => this._applyOps(ops),
+      (txId: string, ops: BufferedOp<unknown>[]) => this._applyOps(txId, ops),
     )
     this.store._transactions.set(tx.id, tx)
     return tx
@@ -310,7 +310,7 @@ export class MemoryBackend implements IStorageBackend<unknown> {
    * Called by MemoryTransaction.commit().
    * Single-threaded JS means this truly is atomic.
    */
-  private _applyOps(ops: BufferedOp<unknown>[]): void {
+  private _applyOps(txId: string, ops: BufferedOp<unknown>[]): void {
     for (const op of ops) {
       switch (op.kind) {
         case 'write':
@@ -336,6 +336,7 @@ export class MemoryBackend implements IStorageBackend<unknown> {
       }
     }
     // Remove the transaction from the active set after commit
+    this.store._transactions.delete(txId)
   }
 
   private _defaultTieBreak(
