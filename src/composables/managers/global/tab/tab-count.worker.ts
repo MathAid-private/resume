@@ -5,11 +5,11 @@ import { isNil, pick } from "lodash";
 import type { ITabCountError, ITabCountRequest, ITabCountResponse } from "./tab.types";
 
 import { TabCountTransactionType } from "./tab.types";
-import { clientIsSameOriginWithWorker } from "@/libs/utils";
+import { clientIsSameOriginWithWorker } from "@/libs";
 
 /*************************************************************************************
- * Types
- ***********************************************************************************/
+ * Types                                                                            **
+ ************************************************************************************/
 interface TabIdentityWorkerState {
     ports: MessagePort[];
     tabs: Record<string, number>
