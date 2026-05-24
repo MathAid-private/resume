@@ -1,7 +1,11 @@
-import type { FunctionLike } from "@/modules/util.dto";
-import { BasicError, PlatformErrorEvent, type ICleanUp, type ICleanUpRecord } from "./manager.dto";
-import { isNil } from "lodash";
 import type { App } from "vue";
+
+import { isNil } from "lodash";
+
+import type { FunctionLike } from "@/modules/util.dto";
+import type { ICleanUp, ICleanUpRecord } from "./manager.dto";
+
+import { BasicError, PlatformErrorEvent } from "./manager.dto";
 
 export async function tryRun<F extends FunctionLike<never[]>>(op: F): Promise<ReturnType<typeof op> | void> {
   try {

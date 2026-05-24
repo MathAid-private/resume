@@ -1,5 +1,6 @@
-import type { ComputeClampParams } from "@/types/utils.type";
 import { isNil } from "lodash";
+
+import type { ComputeClampParams } from "@/types";
 
 /**
  * Generates a cryptographically secure random floating-point number

@@ -1,4 +1,4 @@
-import type { IBrowserInfo } from "@/types/user-agent.types";
+import type { IBrowserInfo } from "@/types";
 
 /**
  * Configuration options for dynamically loading a polyfill script.

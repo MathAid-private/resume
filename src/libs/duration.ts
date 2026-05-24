@@ -7,48 +7,20 @@
  * Formatting delegates entirely to Intl.DurationFormat.
  */
 
+import {
+  DAY_IN_WEEK,
+  HOUR_IN_DAY,
+  INTL_UNIT_MAP,
+  ISO_DURATION_RE,
+  MIN_IN_HOUR,
+  MS_IN_DAY,
+  MS_IN_MONTH,
+  MS_IN_SEC,
+  MS_IN_YEAR,
+  SEC_IN_MIN,
+  UNITS
+} from "@/constants";
 import type { DateLike, DurationDefinition, DurationLike, DurationRecord } from "@/types";
-
-const MS_IN_SEC = 1000;
-const SEC_IN_MIN = 60;
-const MIN_IN_HOUR = 60;
-const HOUR_IN_DAY = 24;
-const DAY_IN_WEEK = 7;
-const AVG_DAYS_IN_MONTH = 30.44;
-const AVG_DAYS_IN_YEAR = 365.25;
-
-const MIN_IN_DAY = MIN_IN_HOUR * HOUR_IN_DAY;
-const SEC_IN_DAY = SEC_IN_MIN * MIN_IN_DAY;
-const MS_IN_DAY = MS_IN_SEC * SEC_IN_DAY;
-const MS_IN_MONTH = MS_IN_DAY * AVG_DAYS_IN_MONTH;
-const MS_IN_YEAR = MS_IN_DAY * AVG_DAYS_IN_YEAR;
-
-// Canonical unit order, most-significant → least-significant.
-const UNITS: ReadonlyArray<keyof DurationRecord> = [
-  'millennia', 'centuries', 'decades', 'years', 'months',
-  'weeks', 'days', 'hours', 'minutes', 'seconds', 'milliseconds',
-];
-
-// ---------------------------------------------------------------------------
-// Intl.DurationFormat helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Maps our DurationRecord keys to the field names expected by
- * Intl.DurationFormat / Temporal.Duration.
- * Note: decades / centuries / millennia are not part of the Intl spec; they
- * are collapsed into `years` before formatting.
- */
-const INTL_UNIT_MAP: Partial<Record<keyof DurationRecord, keyof DurationRecord>> = {
-  years:        'years',
-  months:       'months',
-  weeks:        'weeks',
-  days:         'days',
-  hours:        'hours',
-  minutes:      'minutes',
-  seconds:      'seconds',
-  milliseconds: 'milliseconds',
-} as const;
 
 /**
  * Collapses decades / centuries / millennia into `years` so the record is
@@ -58,7 +30,7 @@ function toIntlRecord(record: DurationRecord) {
   const extraYears =
     (record.millennia ?? 0) * 1000 +
     (record.centuries ?? 0) * 100 +
-    (record.decades  ?? 0) * 10;
+    (record.decades ?? 0) * 10;
 
   const intl: DurationRecord = {};
 
@@ -103,18 +75,6 @@ function formatWithIntl(
   return new Intl.DurationFormat(locale, { style }).format(intlRecord);
 }
 
-// ---------------------------------------------------------------------------
-// ISO 8601 / RFC 9557 structural parsing (regex — format, not measurement)
-// ---------------------------------------------------------------------------
-
-/**
- * Structural regex covering both RFC 3339 (no weeks) and RFC 9557 (with weeks).
- * Using a single regex keeps parsing DRY; callers enforce the week-field
- * restriction for strict RFC 3339 validation.
- */
-const ISO_DURATION_RE =
-  /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/;
-
 /**
  * Parses an ISO 8601 / RFC 9557 duration string into a DurationRecord.
  * Milliseconds are extracted from the fractional part of the seconds designator.
@@ -138,16 +98,16 @@ function parseISOString(
   }
 
   const record: DurationRecord = {
-    years:   rawYears   || undefined,
-    months:  rawMonths  || undefined,
-    weeks:   rawWeeks   || undefined,
-    days:    rawDays    || undefined,
-    hours:   rawHours   || undefined,
+    years: rawYears || undefined,
+    months: rawMonths || undefined,
+    weeks: rawWeeks || undefined,
+    days: rawDays || undefined,
+    hours: rawHours || undefined,
     minutes: rawMinutes || undefined,
   };
 
   if (rawSeconds != null && rawSeconds !== 0) {
-    record.seconds      = Math.floor(rawSeconds);
+    record.seconds = Math.floor(rawSeconds);
     record.milliseconds = Math.round((rawSeconds % 1) * 1000) || undefined;
   }
 
@@ -241,17 +201,17 @@ export class Duration implements DurationDefinition {
     const years =
       (this.millennia ?? 0) * 1000 +
       (this.centuries ?? 0) * 100 +
-      (this.decades   ?? 0) * 10 +
-      (this.years     ?? 0);
+      (this.decades ?? 0) * 10 +
+      (this.years ?? 0);
 
     return (
       (this.milliseconds ?? 0) +
       (this.seconds ?? 0) * MS_IN_SEC +
       (this.minutes ?? 0) * SEC_IN_MIN * MS_IN_SEC +
-      (this.hours   ?? 0) * MIN_IN_HOUR * SEC_IN_MIN * MS_IN_SEC +
-      (this.days    ?? 0) * HOUR_IN_DAY * MIN_IN_HOUR * SEC_IN_MIN * MS_IN_SEC +
-      (this.weeks   ?? 0) * DAY_IN_WEEK * HOUR_IN_DAY * MIN_IN_HOUR * SEC_IN_MIN * MS_IN_SEC +
-      (this.months  ?? 0) * MS_IN_MONTH +
+      (this.hours ?? 0) * MIN_IN_HOUR * SEC_IN_MIN * MS_IN_SEC +
+      (this.days ?? 0) * HOUR_IN_DAY * MIN_IN_HOUR * SEC_IN_MIN * MS_IN_SEC +
+      (this.weeks ?? 0) * DAY_IN_WEEK * HOUR_IN_DAY * MIN_IN_HOUR * SEC_IN_MIN * MS_IN_SEC +
+      (this.months ?? 0) * MS_IN_MONTH +
       years * MS_IN_YEAR
     );
   }
@@ -265,25 +225,25 @@ export class Duration implements DurationDefinition {
     const years =
       (this.millennia ?? 0) * 1000 +
       (this.centuries ?? 0) * 100 +
-      (this.decades   ?? 0) * 10 +
-      (this.years     ?? 0);
+      (this.decades ?? 0) * 10 +
+      (this.years ?? 0);
 
-    if (years)          result.setFullYear(result.getFullYear() + sign * years);
-    if (this.months)    result.setMonth(result.getMonth() + sign * this.months);
-    if (this.weeks)     result.setDate(result.getDate() + sign * this.weeks * 7);
-    if (this.days)      result.setDate(result.getDate() + sign * this.days);
-    if (this.hours)     result.setHours(result.getHours() + sign * this.hours);
-    if (this.minutes)   result.setMinutes(result.getMinutes() + sign * this.minutes);
-    if (this.seconds)   result.setSeconds(result.getSeconds() + sign * this.seconds);
+    if (years) result.setFullYear(result.getFullYear() + sign * years);
+    if (this.months) result.setMonth(result.getMonth() + sign * this.months);
+    if (this.weeks) result.setDate(result.getDate() + sign * this.weeks * 7);
+    if (this.days) result.setDate(result.getDate() + sign * this.days);
+    if (this.hours) result.setHours(result.getHours() + sign * this.hours);
+    if (this.minutes) result.setMinutes(result.getMinutes() + sign * this.minutes);
+    if (this.seconds) result.setSeconds(result.getSeconds() + sign * this.seconds);
     if (this.milliseconds)
       result.setMilliseconds(result.getMilliseconds() + sign * this.milliseconds);
 
     return result;
   }
 
-  ago(fromDate: DateLike = new Date()): Date     { return this.toDate(fromDate, 'past'); }
+  ago(fromDate: DateLike = new Date()): Date { return this.toDate(fromDate, 'past'); }
   fromThen(fromDate: DateLike = new Date()): Date { return this.toDate(fromDate, 'future'); }
-  fromNow(): Date                                 { return this.fromThen(); }
+  fromNow(): Date { return this.fromThen(); }
 
   normalize(targetUnit?: keyof DurationRecord, options?: { approximate: boolean }): Duration {
     const totalMillis = this._toTotalMillis();
@@ -291,16 +251,16 @@ export class Duration implements DurationDefinition {
 
     if (targetUnit) {
       const divisors: Record<keyof DurationRecord, number> = {
-        millennia:    MS_IN_YEAR * 1000,
-        centuries:    MS_IN_YEAR * 100,
-        decades:      MS_IN_YEAR * 10,
-        years:        MS_IN_YEAR,
-        months:       MS_IN_MONTH,
-        weeks:        MS_IN_DAY * 7,
-        days:         MS_IN_DAY,
-        hours:        MS_IN_DAY / 24,
-        minutes:      MS_IN_SEC * 60,
-        seconds:      MS_IN_SEC,
+        millennia: MS_IN_YEAR * 1000,
+        centuries: MS_IN_YEAR * 100,
+        decades: MS_IN_YEAR * 10,
+        years: MS_IN_YEAR,
+        months: MS_IN_MONTH,
+        weeks: MS_IN_DAY * 7,
+        days: MS_IN_DAY,
+        hours: MS_IN_DAY / 24,
+        minutes: MS_IN_SEC * 60,
+        seconds: MS_IN_SEC,
         milliseconds: 1,
       };
       const totalValue = totalMillis / divisors[targetUnit];
@@ -364,16 +324,16 @@ export class Duration implements DurationDefinition {
 
   roundTo(unit: keyof DurationRecord): Duration {
     const divisors: Record<keyof DurationRecord, number> = {
-      millennia:    MS_IN_YEAR * 1000,
-      centuries:    MS_IN_YEAR * 100,
-      decades:      MS_IN_YEAR * 10,
-      years:        MS_IN_YEAR,
-      months:       MS_IN_MONTH,
-      weeks:        MS_IN_DAY * 7,
-      days:         MS_IN_DAY,
-      hours:        MS_IN_DAY / 24,
-      minutes:      MS_IN_SEC * 60,
-      seconds:      MS_IN_SEC,
+      millennia: MS_IN_YEAR * 1000,
+      centuries: MS_IN_YEAR * 100,
+      decades: MS_IN_YEAR * 10,
+      years: MS_IN_YEAR,
+      months: MS_IN_MONTH,
+      weeks: MS_IN_DAY * 7,
+      days: MS_IN_DAY,
+      hours: MS_IN_DAY / 24,
+      minutes: MS_IN_SEC * 60,
+      seconds: MS_IN_SEC,
       milliseconds: 1,
     };
     return new Duration({ [unit]: Math.round(this._toTotalMillis() / divisors[unit]) });
@@ -398,16 +358,16 @@ export class Duration implements DurationDefinition {
   split(unit: keyof DurationRecord): Duration[] {
     const unitMs: Record<keyof DurationRecord, number> = {
       millennia: MS_IN_YEAR * 1000, centuries: MS_IN_YEAR * 100,
-      decades:   MS_IN_YEAR * 10,   years:     MS_IN_YEAR,
-      months:    MS_IN_MONTH,        weeks:     MS_IN_DAY * 7,
-      days:      MS_IN_DAY,          hours:     MS_IN_DAY / 24,
-      minutes:   MS_IN_SEC * 60,     seconds:   MS_IN_SEC,
+      decades: MS_IN_YEAR * 10, years: MS_IN_YEAR,
+      months: MS_IN_MONTH, weeks: MS_IN_DAY * 7,
+      days: MS_IN_DAY, hours: MS_IN_DAY / 24,
+      minutes: MS_IN_SEC * 60, seconds: MS_IN_SEC,
       milliseconds: 1,
     };
     const totalMillis = this._toTotalMillis();
-    const chunkMs     = unitMs[unit];
-    const count       = Math.floor(totalMillis / chunkMs);
-    const remainder   = totalMillis % chunkMs;
+    const chunkMs = unitMs[unit];
+    const count = Math.floor(totalMillis / chunkMs);
+    const remainder = totalMillis % chunkMs;
 
     const chunks = Array<Duration>(count).fill(new Duration({ [unit]: 1 }));
     if (remainder > 0) chunks.push(new Duration({ milliseconds: remainder }));
@@ -435,10 +395,10 @@ export class Duration implements DurationDefinition {
     catch { return false; }
   }
 
-  clone():      Duration { return new Duration(this); }
-  isZero():     boolean  { return this._toTotalMillis() === 0; }
-  isNegative(): boolean  { return this._toTotalMillis() < 0; }
-  isPositive(): boolean  { return this._toTotalMillis() > 0; }
+  clone(): Duration { return new Duration(this); }
+  isZero(): boolean { return this._toTotalMillis() === 0; }
+  isNegative(): boolean { return this._toTotalMillis() < 0; }
+  isPositive(): boolean { return this._toTotalMillis() > 0; }
 
   multiply(factor: number): Duration {
     if (factor < 0) throw new Error('Factor must be a non-negative number.');
@@ -460,13 +420,13 @@ export class Duration implements DurationDefinition {
     let datePart = '';
     let timePart = '';
 
-    if (this.years)   datePart += `${Math.floor(this.years)}Y`;
-    if (this.months)  datePart += `${Math.floor(this.months)}M`;
+    if (this.years) datePart += `${Math.floor(this.years)}Y`;
+    if (this.months) datePart += `${Math.floor(this.months)}M`;
     if (format === 'RFC9557' && this.weeks) datePart += `${Math.floor(this.weeks)}W`;
-    if (this.days)    datePart += `${Math.floor(this.days)}D`;
+    if (this.days) datePart += `${Math.floor(this.days)}D`;
 
     if (this.hours || this.minutes || this.seconds || this.milliseconds) {
-      if (this.hours)   timePart += `${Math.floor(this.hours)}H`;
+      if (this.hours) timePart += `${Math.floor(this.hours)}H`;
       if (this.minutes) timePart += `${Math.floor(this.minutes)}M`;
       if (this.seconds || this.milliseconds) {
         const totalSeconds = (this.seconds ?? 0) + (this.milliseconds ?? 0) / 1000;
@@ -480,12 +440,12 @@ export class Duration implements DurationDefinition {
   // ── Getters ───────────────────────────────────────────────────────────────
 
   getTotalMilliseconds(): number { return this._toTotalMillis(); }
-  getTotalSeconds():      number { return this._toTotalMillis() / MS_IN_SEC; }
-  getTotalMinutes():      number { return this._toTotalMillis() / (MS_IN_SEC * SEC_IN_MIN); }
-  getTotalHours():        number { return this._toTotalMillis() / (MS_IN_SEC * SEC_IN_MIN * MIN_IN_HOUR); }
+  getTotalSeconds(): number { return this._toTotalMillis() / MS_IN_SEC; }
+  getTotalMinutes(): number { return this._toTotalMillis() / (MS_IN_SEC * SEC_IN_MIN); }
+  getTotalHours(): number { return this._toTotalMillis() / (MS_IN_SEC * SEC_IN_MIN * MIN_IN_HOUR); }
 
   isGreaterThan(other: DurationLike): boolean { return this.compareTo(other) === 1; }
-  isLessThan(other: DurationLike):    boolean { return this.compareTo(other) === -1; }
+  isLessThan(other: DurationLike): boolean { return this.compareTo(other) === -1; }
 
   // ── Serialization ─────────────────────────────────────────────────────────
 
@@ -509,20 +469,20 @@ export class Duration implements DurationDefinition {
 
   trunc(unitOrLevels?: keyof DurationRecord | number): Duration {
     if (typeof unitOrLevels === 'string') {
-      const newDuration  = this.clone();
-      const targetIndex  = UNITS.indexOf(unitOrLevels);
+      const newDuration = this.clone();
+      const targetIndex = UNITS.indexOf(unitOrLevels);
       for (let i = targetIndex + 1; i < UNITS.length; i++) delete newDuration[UNITS[i]];
       return newDuration;
     }
 
-    const levels     = unitOrLevels ?? 0;
+    const levels = unitOrLevels ?? 0;
     const newDuration = this.clone();
-    const msIndex     = UNITS.findIndex((u) => newDuration[u] && newDuration[u] !== 0);
+    const msIndex = UNITS.findIndex((u) => newDuration[u] && newDuration[u] !== 0);
 
     if (msIndex === -1) return new Duration({});
 
     const startIndex = levels < 0 ? Math.max(0, msIndex + levels) : msIndex;
-    const endIndex   = levels > 0 ? Math.min(UNITS.length - 1, msIndex + levels) : msIndex;
+    const endIndex = levels > 0 ? Math.min(UNITS.length - 1, msIndex + levels) : msIndex;
 
     for (let i = 0; i < UNITS.length; i++) {
       if (i < startIndex || i > endIndex) delete newDuration[UNITS[i]];
@@ -533,10 +493,10 @@ export class Duration implements DurationDefinition {
 
   // ── Key inspection ────────────────────────────────────────────────────────
 
-  getPositiveKeys():  (keyof DurationRecord)[] { return UNITS.filter((u) => (this[u] ?? 0) > 0); }
-  getNilKeys():       (keyof DurationRecord)[] { return UNITS.filter((u) => this[u] == null); }
-  getZeroKeys():      (keyof DurationRecord)[] { return UNITS.filter((u) => this[u] === 0); }
-  getNegativeKeys():  (keyof DurationRecord)[] { return UNITS.filter((u) => (this[u] ?? 0) < 0); }
+  getPositiveKeys(): (keyof DurationRecord)[] { return UNITS.filter((u) => (this[u] ?? 0) > 0); }
+  getNilKeys(): (keyof DurationRecord)[] { return UNITS.filter((u) => this[u] == null); }
+  getZeroKeys(): (keyof DurationRecord)[] { return UNITS.filter((u) => this[u] === 0); }
+  getNegativeKeys(): (keyof DurationRecord)[] { return UNITS.filter((u) => (this[u] ?? 0) < 0); }
 
   // ── Static factory methods ────────────────────────────────────────────────
 
@@ -548,14 +508,14 @@ export class Duration implements DurationDefinition {
     let diff = Math.abs(lhs.getTime() - rhs.getTime());
     const state: DurationRecord = {};
 
-    state.years        = Math.floor(diff / MS_IN_YEAR);        diff %= MS_IN_YEAR;
-    state.months       = Math.floor(diff / MS_IN_MONTH);       diff %= MS_IN_MONTH;
-    state.days         = Math.floor(diff / MS_IN_DAY);         diff %= MS_IN_DAY;
-    state.hours        = Math.floor(diff / (MS_IN_SEC * SEC_IN_MIN * MIN_IN_HOUR));
-                                                               diff %= MS_IN_SEC * SEC_IN_MIN * MIN_IN_HOUR;
-    state.minutes      = Math.floor(diff / (MS_IN_SEC * SEC_IN_MIN));
-                                                               diff %= MS_IN_SEC * SEC_IN_MIN;
-    state.seconds      = Math.floor(diff / MS_IN_SEC);
+    state.years = Math.floor(diff / MS_IN_YEAR); diff %= MS_IN_YEAR;
+    state.months = Math.floor(diff / MS_IN_MONTH); diff %= MS_IN_MONTH;
+    state.days = Math.floor(diff / MS_IN_DAY); diff %= MS_IN_DAY;
+    state.hours = Math.floor(diff / (MS_IN_SEC * SEC_IN_MIN * MIN_IN_HOUR));
+    diff %= MS_IN_SEC * SEC_IN_MIN * MIN_IN_HOUR;
+    state.minutes = Math.floor(diff / (MS_IN_SEC * SEC_IN_MIN));
+    diff %= MS_IN_SEC * SEC_IN_MIN;
+    state.seconds = Math.floor(diff / MS_IN_SEC);
     state.milliseconds = diff % MS_IN_SEC;
 
     return new Duration(state);
@@ -591,13 +551,13 @@ export class Duration implements DurationDefinition {
    * parseISOString() implementation.
    */
   static fromDurationLike(d: DurationLike): Duration {
-    if (d instanceof Duration)  return d;
-    if (typeof d === 'number')  return Duration.fromMilliseconds(d);
-    if (d instanceof Date)      return Duration.fromMilliseconds(d.getTime());
+    if (d instanceof Duration) return d;
+    if (typeof d === 'number') return Duration.fromMilliseconds(d);
+    if (d instanceof Date) return Duration.fromMilliseconds(d.getTime());
 
     if (typeof d === 'string') {
-      try   { return Duration.fromRFC9557(d); } catch { /* fall through */ }
-      try   { return Duration.fromRFC3339(d); } catch { /* fall through */ }
+      try { return Duration.fromRFC9557(d); } catch { /* fall through */ }
+      try { return Duration.fromRFC3339(d); } catch { /* fall through */ }
       const date = new Date(d);
       if (Number.isNaN(date.getTime()))
         throw new Error(
@@ -614,13 +574,13 @@ export class Duration implements DurationDefinition {
 
   /** Returns true if the string is a valid RFC 3339 duration (no weeks). */
   static isValidRFC3339(input: string): boolean {
-    try   { parseISOString(input, false); return true; }
+    try { parseISOString(input, false); return true; }
     catch { return false; }
   }
 
   /** Returns true if the string is a valid RFC 9557 duration (weeks allowed). */
   static isValidRFC9557(input: string): boolean {
-    try   { parseISOString(input, true); return true; }
+    try { parseISOString(input, true); return true; }
     catch { return false; }
   }
 
