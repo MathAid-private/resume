@@ -591,6 +591,189 @@ export interface ITransaction {
  * Every storage backend (Memory, SessionStorage, LocalStorage, IndexedDB)
  * must implement this interface.
  *
+ * **Storage - Workflow**
+ * ```
+ * +-------------------------------------------------------------------------+
+ * |                          VUE 3.3+ APPLICATION                           |
+ * |                                                                         |
+ * |  +-------------+   +-------------+   +-------------+   +-------------+  |
+ * |  |   Page / Component A          |   |  Page / Component B           |  |
+ * |  |                               |   |                               |  |
+ * |  |  useStorage('domain:chrome…') |   |  useStorage('domain:chrome…') |  |
+ * |  +--------------|----------------+   +---------------|---------------+  |
+ * |                 |  Composable (Facade)               |                  |
+ * |                 +------------------|-----------------+                  |
+ * |                                    |                                    |
+ * |             +----------------------▼-----------------------+            |
+ * |             |              FACADE LAYER                    |            |
+ * |             |                                              |            |
+ * |             |  - Resolves canonical key                    |            |
+ * |             |  - Attaches calling-module segment           |            |
+ * |             |  - Exposes: get / set / delete / query /     |            |
+ * |             |             transaction / subscribe          |            |
+ * |             |  - Reads capabilities from global state      |            |
+ * |             |  - Forwards all ops to SharedWorker via      |            |
+ * |             |    MessageChannel (request/response pairs)   |            |
+ * |             +----------------------|-----------------------+            |
+ * |                                    |                                    |
+ * |             +----------------------▼------------------------+           |
+ * |             |           PINIA GLOBAL STATE                  |           |
+ * |             |                                               |           |
+ * |             |  storageState: {                              |           |
+ * |             |    lifecycle: idle|booting|running|           |           |
+ * |             |               winding_down                    |           |
+ * |             |    activeBackend: IndexedDB|LS|SS|Memory      |           |
+ * |             |    capabilities: { idb, ls, ss, sw, crypto }  |           |
+ * |             |    encryptionReady: boolean                   |           |
+ * |             |    pendingOps: Op[]          (drain queue)    |           |
+ * |             |    changeLog: ChangeEvent[]  (audit feed)     |           |
+ * |             |  }                                            |           |
+ * |             +-----------------------------------------------+           |
+ * +-------------------------------------------------------------------------+
+ *                                      |
+ *                     MessageChannel / postMessage
+ *                                      |
+ * +------------------------------------▼------------------------------------+
+ * |                         SHARED WORKER                                   |
+ * |                     (single coordinator thread)                         |
+ * |                                                                         |
+ * |  +-----------------------------------------------------------------+    |
+ * |  |                     LIFECYCLE MANAGER                           |    |
+ * |  |                                                                 |    |
+ * |  |   idle ==> booting ==> running ==> winding_down ==> idle        |    |
+ * |  |               |            |             |                      |    |
+ * |  |            abort()      abort()       abort()   (all states     |    |
+ * |  |               |            |             |       implement      |    |
+ * |  |               +------------┴-------------+       AbortSignal)   |    |
+ * |  |                                                                 |    |
+ * |  |   Boot sequence:                                                |    |
+ * |  |     1. Run capability probes (write/read/delete smoke tests)    |    |
+ * |  |     2. Fetch encryption key from remote (with timeout + abort)  |    |
+ * |  |     3. Init SubtleCrypto with key, mark encryptionReady         |    |
+ * |  |     4. Select active backend strategy via fallback chain        |    |
+ * |  |     5. Run schema migrations on active backend                  |    |
+ * |  |     6. Drain pendingOps queue                                   |    |
+ * |  |     7. Transition to running                                    |    |
+ * |  +-----------------------------------------------------------------+    |
+ * |                                                                         |
+ * |  +-----------------------------------------------------------------+    |
+ * |  |                      OP SCHEDULER                               |    |
+ * |  |                                                                 |    |
+ * |  |   Incoming ops ==> priority queue ==> serial execution          |    |
+ * |  |                                                                 |    |
+ * |  |   Op types: Read | Write | Delete | Transaction | Migration     |    |
+ * |  |   Each op carries: AbortSignal, priority, transactionId?,       |    |
+ * |  |                                                                 |    |
+ * |  |   Scheduler rules:                                              |    |
+ * |  |   - One active transaction at a time (others wait in queue)     |    |
+ * |  |   - Backend switch during transaction ==> abort transaction     |    |
+ * |  |   - winding_down ==> drain current op, reject rest              |    |
+ * |  +-------------------------------|---------------------------------+    |
+ * |                                  |                                      |
+ * |  +-------------------------------▼-----------------------------------+  |
+ * |  |                    TRANSACTION MANAGER                            |  |
+ * |  |                                                                   |  |
+ * |  |   begin() ==> snapshot pre-state ==> execute ops                  |  |
+ * |  |                                         |                         |  |
+ * |  |                               success? -┤                         |  |
+ * |  |                                  yes ==> commit, emit change      |  |
+ * |  |                                  no  ==> restore snapshot         |  |
+ * |  |                                         (compensating rollback    |  |
+ * |  |                                          on LS/SS; native on IDB) |  |
+ * |  |                                                                   |  |
+ * |  |   Transaction strength levels:                                    |  |
+ * |  |     serializable  -- IDB only                                     |  |
+ * |  |     compensating  -- LS / SS                                      |  |
+ * |  |     best-effort   -- Memory                                       |  |
+ * |  |   (strength exposed to caller; mismatch rejects the transaction)  |  |
+ * |  +-------------------------------|-----------------------------------+  |
+ * |                                  |                                      |
+ * |  +-------------------------------▼-----------------------------------+  |
+ * |  |                      DATA PIPELINE                                |  |
+ * |  |              (ordered, applied per op)                            |  |
+ * |  |                                                                   |  |
+ * |  |   WRITE path:                                                     |  |
+ * |  |     validate (Zod) ==> user serializer ==> encrypt                |  |
+ * |  |     ==> attach metadata ==> backend write                         |  |
+ * |  |                                                                   |  |
+ * |  |   READ path:                                                      |  |
+ * |  |     backend read ==> check TTL/expiry ==> decrypt                 |  |
+ * |  |     ==> check schema_version ==> migrate if stale                 |  |
+ * |  |     ==> user deserializer ==> validate (Zod) ==> return           |  |
+ * |  |                                                                   |  |
+ * |  |   Metadata envelope (stored alongside every entry):               |  |
+ * |  |   {                                                               |  |
+ * |  |     schema_version: number                                        |  |
+ * |  |     written_at:     timestamp                                     |  |
+ * |  |     expires_at:     timestamp | null                              |  |
+ * |  |     weight:         number    (user-defined, for eviction)        |  |
+ * |  |     backend:        string    (which strategy wrote this)         |  |
+ * |  |   }                                                               |  |
+ * |  +-------------------------------|-----------------------------------+  |
+ * |                                  |                                      |
+ * |  +-------------------------------▼-----------------------------------+  |
+ * |  |                    STRATEGY REGISTRY                              |  |
+ * |  |                                                                   |  |
+ * |  |   Fallback chain (resolved at boot from capability probe):        |  |
+ * |  |                                                                   |  |
+ * |  |   IndexedDB ==> LocalStorage ==> SessionStorage ==> Memory        |  |
+ * |  |      |               |                |               |           |  |
+ * |  |   serializable   compensating    compensating    best-effort      |  |
+ * |  |   transactions   transactions    transactions    transactions     |  |
+ * |  |                                                                   |  |
+ * |  |   Each strategy implements:                                       |  |
+ * |  |     probe() → CapabilityResult                                    |  |
+ * |  |     read(key) / write(key, envelope) / delete(key)                |  |
+ * |  |     beginTx() / commitTx() / rollbackTx()                         |  |
+ * |  |     estimateQuota() / evict(policy)                               |  |
+ * |  |     close()   ← called during winding_down                        |  |
+ * |  |                                                                   |  |
+ * |  |   User may override chain order via Facade config                 |  |
+ * |  +-------------------------------|-----------------------------------+  |
+ * |                                  |                                      |
+ * |  +-------------------------------▼-----------------------------------+  |
+ * |  |                      QUOTA MANAGER                                |  |
+ * |  |                                                                   |  |
+ * |  |   Monitors: navigator.storage.estimate() on interval              |  |
+ * |  |   On pressure:                                                    |  |
+ * |  |     1. Evict expired entries first (TTL sweep)                    |  |
+ * |  |     2. Sort remaining by user-defined weight                      |  |
+ * |  |     3. Apply user eviction policy for tie-breaking                |  |
+ * |  |     4. Emit quota warning event to all connected tabs             |  |
+ * |  +-------------------------------------------------------------------+  |
+ * |                                                                         |
+ * |  +------------------------------------------------------------------+   |
+ * |  |                   MIGRATION RUNNER                               |   |
+ * |  |                                                                  |   |
+ * |  |   At boot, per backend:                                          |   |
+ * |  |     - Read current stored schema_version                         |   |
+ * |  |     - Compare against registered migrations[]                    |   |
+ * |  |     - Run transforms sequentially, version by version            |   |
+ * |  |     - Each migration: (oldData, oldSchema) => newData            |   |
+ * |  |     - Wrap entire migration sequence in a transaction            |   |
+ * |  |     - On failure: rollback, surface error, halt boot             |   |
+ * |  |                                                                  |   |
+ * |  |   Per-entry lazy migration (on READ):                            |   |
+ * |  |     - If entry.schema_version < current: migrate that entry      |   |
+ * |  |     - Write migrated entry back before returning to caller       |   |
+ * |  +------------------------------------------------------------------+   |
+ * +-------------------------------------------------------------------------+
+ *                                      |
+ *                     BroadcastChannel('storage-sync')
+ *                                      |
+ *               +----------------------▼------------------------+
+ *               |          ALL CONNECTED TABS / WINDOWS         |
+ *               |                                               |
+ *               |  Receives: ChangeEvent {                      |
+ *               |    key, op, schema_version, timestamp,        |
+ *               |    backend, workerId                          |
+ *               |  }                                            |
+ *               |                                               |
+ *               |  Facade subscribes, updates Pinia state,      |
+ *               |  triggers Vue reactivity automatically        |
+ *               +-----------------------------------------------+
+ * ```
+ *
  * The methods here operate on **already-processed** data — validation,
  * serialization, encryption, and envelope attachment all happen in the
  * pipeline layer *before* calling the backend. The backend only deals with
