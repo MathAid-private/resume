@@ -115,21 +115,20 @@ export function useWorkerStrategy() {
   return { bootstrap, show, hide }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BroadcastChannel strategy  — leader-election model
-//
-// WHY the previous version was broken:
-//   Each tab held its own in-memory `tabs` map. Tab B opened, found an empty
-//   map, counted 1 tab, and was forever unaware of Tab A.
-//
-// FIX — one tab is the "leader" and owns all state:
-//   • On connect every tab announces itself with HELLO.
-//   • The leader replies with WELCOME (containing the authoritative tab list).
-//   • If no WELCOME arrives within ELECTION_TIMEOUT_MS the tab self-elects.
-//   • Followers send INCR/DECR; the leader processes them and broadcasts COUNT.
-//   • When the leader closes it sends HANDOFF to nominate its successor.
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * **BroadcastChannel strategy** - leader-election model
+ *
+ * **WHY** - the previous version was broken:
+ *   Each tab held its own in-memory `tabs` map. Tab B opened, found an empty
+ *   map, counted 1 tab, and was forever unaware of Tab A.
+ *
+ * **FIX** - one tab is the "leader" and owns all state:
+ *   - On connect every tab announces itself with HELLO.
+ *   - The leader replies with WELCOME (containing the authoritative tab list).
+ *   - If no WELCOME arrives within ELECTION_TIMEOUT_MS the tab self-elects.
+ *   - Followers send INCR/DECR; the leader processes them and broadcasts COUNT.
+ *   - When the leader closes it sends HANDOFF to nominate its successor.
+ */
 const enum BCMsgType {
   HELLO    = 'hello',
   WELCOME  = 'welcome',
@@ -288,7 +287,7 @@ export function useBroadcastStrategy() {
       send(tab, { type: BCMsgType.HELLO, tabId: myId })
 
       const timer = setTimeout(() => {
-        // No leader replied — self-elect
+        // No leader replied - self-elect
         delete tab.store.metadata.pendingHello
         delete tab.store.metadata.electionTimer
         becomeLeader(tab, [myId])
@@ -332,14 +331,14 @@ export function useBroadcastStrategy() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sequential (localStorage) strategy  — leader-election via storage events
+// Sequential (localStorage) strategy  - leader-election via storage events
 //
 // WHY the previous version was broken:
-//   sessionStorage is completely isolated per tab — it cannot be shared.
+//   sessionStorage is completely isolated per tab - it cannot be shared.
 //   Even localStorage's `storage` event is suppressed in the writer, so
 //   the in-memory-only approach never worked cross-tab.
 //
-// FIX — leader-election using localStorage as the shared bus:
+// FIX - leader-election using localStorage as the shared bus:
 //   • LS_LEADER_KEY  holds the current leader's tabId.
 //   • LS_TABS_KEY    holds JSON array of all live tab IDs (leader writes only).
 //   • LS_REQ_KEY     followers write INCR/DECR requests here.
@@ -411,7 +410,7 @@ export function useSequentialStrategy() {
     writeTabs(tab.store.metadata.tabs!)
     const count = tab.store.metadata.tabs!.size
     tab.store.count = count
-    // Write response — will fire `storage` in all tabs including the requester
+    // Write response - will fire `storage` in all tabs including the requester
     lsWrite(LS_RES_KEY, { count, actionId: req.actionId, tabId: req.tabId } as LSResponse)
   }
 
@@ -537,7 +536,7 @@ export function useSequentialStrategy() {
       const currentLeader = readLeader()
 
       if (!currentLeader) {
-        // No leader — start election wait, then self-elect if no one responds
+        // No leader - start election wait, then self-elect if no one responds
         tab.store.metadata.electionTimer = setTimeout(() => {
           delete tab.store.metadata.electionTimer
           delete tab.store.metadata.pendingShow
@@ -548,7 +547,7 @@ export function useSequentialStrategy() {
 
         tab.store.metadata.pendingShow = { resolve, reject, actionId: uuidV4() }
       } else {
-        // Leader exists — send INCR request and wait for LS_RES_KEY storage event
+        // Leader exists - send INCR request and wait for LS_RES_KEY storage event
         const actionId = uuidV4()
         sendFollowerRequest(tab, 'incr', actionId, resolve, reject)
       }
