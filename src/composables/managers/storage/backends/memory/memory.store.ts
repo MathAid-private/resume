@@ -28,7 +28,18 @@ function composeStore() {
 
     /** Active transactions indexed by id. */
     _transactions,
-    /** Read-access counter for LFU eviction. */
+    /**
+     * Read-access counter for LFU eviction.
+     *
+     * It is the access frequency counter for **LFU (Least Frequently Used)** eviction.
+     * Every successful `read()` call increments `_readCount[key]`. When `evict()` is
+     * called with `policy: 'lfu'`, the tie-breaking comparator sorts by ascending read
+     * count — entries read fewest times are evicted first. It resets to zero on overwrite
+     * (a rewritten entry is treated as new). It is in-memory only and resets on page
+     * reload, which means LFU is a within-session heuristic. Both backends track it for
+     * the same reason; Memory just happens to be the only backend where LFU is cheap and
+     * reliable since all reads are guaranteed to go through the same process.
+     */
     _readCount
   }
 }
