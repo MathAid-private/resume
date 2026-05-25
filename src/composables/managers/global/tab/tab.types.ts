@@ -1,5 +1,5 @@
 import type { ICleanUp } from "../../manager.dto";
-import type { useTabCount } from "./tab-count";
+import type { useTabCount } from "./tab-count/tab-count";
 import type { useTabStore } from "./tab-store";
 
 export enum TabCountTransactionType {
