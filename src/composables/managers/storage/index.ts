@@ -34,7 +34,7 @@ export type {
   TransactionBlock,
   TransactionStrength,
   WriteOptions,
-  WritePipelineContext,
+  WritePipelineContext
 } from './storage.types'
 
 export {
@@ -50,5 +50,18 @@ export type {
 
 // Implementations
 export { MemoryBackend } from './backends/memory/memory'
-export { MigrationRunner } from './migration/runner'
 export { MemoryTransaction } from './backends/memory/transaction'
+export { MigrationRunner } from './migration/runner'
+
+// Implementations — OPFS
+export type {
+  IFileIOAdapter,
+  IIOAdapterFactory,
+  IOPFSTransaction, Manifest, ManifestEntry, OPFSBackendConfig,
+  OPFSExecutionContext, WALFile,
+  WALOp
+} from './backends/opfs'
+export {
+  AsyncIOAdapterFactory, detectIOAdapterFactory, OPFSBackend,
+  OPFSTransaction, SyncIOAdapterFactory
+} from './backends/opfs/index'

@@ -35,7 +35,7 @@ export type StorageLifecycle = 'idle' | 'booting' | 'running' | 'winding_down'
 // Backend identity
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type BackendKind = 'indexeddb' | 'localstorage' | 'sessionstorage' | 'memory'
+export type BackendKind = 'indexeddb' | 'localstorage' | 'sessionstorage' | 'memory' | 'opfs' | 'cache'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Transaction strength
@@ -44,9 +44,9 @@ export type BackendKind = 'indexeddb' | 'localstorage' | 'sessionstorage' | 'mem
 /**
  * Describes the atomicity guarantee a backend can provide.
  *
- * - `serializable`  — Full ACID transactions (IndexedDB only).
- * - `compensating`  — Snapshot + restore; not truly atomic (LS / SS).
- * - `best-effort`   — No durability guarantee; in-process only (Memory).
+ * - `serializable`  - Full ACID transactions (IndexedDB only).
+ * - `compensating`  - Snapshot + restore; not truly atomic (LS / SS).
+ * - `best-effort`   - No durability guarantee; in-process only (Memory).
  */
 export type TransactionStrength = 'serializable' | 'compensating' | 'best-effort'
 
@@ -194,7 +194,7 @@ export interface MigrationStep {
  * Full schema definition for a logical storage domain.
  *
  * Type parameter `T` is the *application-level* type (what the caller works
- * with). The pipeline bridges `T` ↔ `string` (serialized) ↔ encrypted blob.
+ * with). The pipeline bridges `T` <=> `string` (serialized) <=> encrypted blob.
  */
 export interface StorageSchema<TSchema extends ZodType = ZodType> {
   /** Zod schema for the current version of the stored value. */
@@ -218,7 +218,7 @@ export interface StorageSchema<TSchema extends ZodType = ZodType> {
    * Custom serializer. Runs *before* encryption on the write path.
    * Defaults to `JSON.stringify`.
    *
-   * Return value must be a string — the pipeline will encrypt this string.
+   * Return value must be a string - the pipeline will encrypt this string.
    */
   serialize?: (value: z.infer<TSchema>) => string
 
@@ -264,7 +264,7 @@ export interface StorageSchema<TSchema extends ZodType = ZodType> {
  * A strategy wraps a backend with the additional metadata the registry needs
  * to select and rank backends at boot time.
  *
- * In most cases a strategy IS a backend — this interface exists to make the
+ * In most cases a strategy IS a backend - this interface exists to make the
  * registry's concerns explicit without polluting IStorageBackend.
  */
 export interface IStorageStrategy<TRaw = string> extends IStorageBackend<TRaw> {
@@ -282,7 +282,7 @@ export interface IStorageStrategy<TRaw = string> extends IStorageBackend<TRaw> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pipeline context — threaded through every stage so stages can read metadata
+// Pipeline context - threaded through every stage so stages can read metadata
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface WritePipelineContext<TSchema extends ZodType> {
@@ -347,7 +347,7 @@ export interface IStoragePipeline {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface StorageFacadeConfig {
-  /** App/site identifier — becomes the `domain` segment of the canonical key. */
+  /** App/site identifier - becomes the `domain` segment of the canonical key. */
   domain:          string
   platform:        Platform
   platformVersion: number
@@ -479,7 +479,7 @@ export interface IStorageFacade {
 
   /**
    * Query entries. Results are decrypted, validated, and migrated before
-   * being returned to the caller — identical pipeline to `get()`.
+   * being returned to the caller - identical pipeline to `get()`.
    */
   query<TSchema extends ZodType>(
     q: StorageQuery,
@@ -512,7 +512,7 @@ export interface IStorageFacade {
    * Events arrive from other tabs (via BroadcastChannel) and from the current
    * tab (forwarded from the SharedWorker).
    *
-   * Returns an `ISubscription` — call `.unsubscribe()` to stop listening.
+   * Returns an `ISubscription` - call `.unsubscribe()` to stop listening.
    */
   subscribe(keyOrPrefix: string, handler: StorageChangeHandler): ISubscription
 
@@ -592,7 +592,7 @@ export interface ITransaction {
  * must implement this interface.
  *
  * **Storage - Workflow**
- * ```
+ * ```txt
  * +-------------------------------------------------------------------------+
  * |                          VUE 3.3+ APPLICATION                           |
  * |                                                                         |
@@ -604,7 +604,7 @@ export interface ITransaction {
  * |                 |  Composable (Facade)               |                  |
  * |                 +------------------|-----------------+                  |
  * |                                    |                                    |
- * |             +----------------------▼-----------------------+            |
+ * |             +---------------------\/-----------------------+            |
  * |             |              FACADE LAYER                    |            |
  * |             |                                              |            |
  * |             |  - Resolves canonical key                    |            |
@@ -616,7 +616,7 @@ export interface ITransaction {
  * |             |    MessageChannel (request/response pairs)   |            |
  * |             +----------------------|-----------------------+            |
  * |                                    |                                    |
- * |             +----------------------▼------------------------+           |
+ * |             +---------------------\/------------------------+           |
  * |             |           PINIA GLOBAL STATE                  |           |
  * |             |                                               |           |
  * |             |  storageState: {                              |           |
@@ -633,7 +633,7 @@ export interface ITransaction {
  *                                      |
  *                     MessageChannel / postMessage
  *                                      |
- * +------------------------------------▼------------------------------------+
+ * +-----------------------------------\/------------------------------------+
  * |                         SHARED WORKER                                   |
  * |                     (single coordinator thread)                         |
  * |                                                                         |
@@ -670,7 +670,7 @@ export interface ITransaction {
  * |  |   - winding_down ==> drain current op, reject rest              |    |
  * |  +-------------------------------|---------------------------------+    |
  * |                                  |                                      |
- * |  +-------------------------------▼-----------------------------------+  |
+ * |  +------------------------------\/-----------------------------------+  |
  * |  |                    TRANSACTION MANAGER                            |  |
  * |  |                                                                   |  |
  * |  |   begin() ==> snapshot pre-state ==> execute ops                  |  |
@@ -688,7 +688,7 @@ export interface ITransaction {
  * |  |   (strength exposed to caller; mismatch rejects the transaction)  |  |
  * |  +-------------------------------|-----------------------------------+  |
  * |                                  |                                      |
- * |  +-------------------------------▼-----------------------------------+  |
+ * |  +------------------------------\/-----------------------------------+  |
  * |  |                      DATA PIPELINE                                |  |
  * |  |              (ordered, applied per op)                            |  |
  * |  |                                                                   |  |
@@ -711,7 +711,7 @@ export interface ITransaction {
  * |  |   }                                                               |  |
  * |  +-------------------------------|-----------------------------------+  |
  * |                                  |                                      |
- * |  +-------------------------------▼-----------------------------------+  |
+ * |  +------------------------------\/-----------------------------------+  |
  * |  |                    STRATEGY REGISTRY                              |  |
  * |  |                                                                   |  |
  * |  |   Fallback chain (resolved at boot from capability probe):        |  |
@@ -731,7 +731,7 @@ export interface ITransaction {
  * |  |   User may override chain order via Facade config                 |  |
  * |  +-------------------------------|-----------------------------------+  |
  * |                                  |                                      |
- * |  +-------------------------------▼-----------------------------------+  |
+ * |  +------------------------------\/-----------------------------------+  |
  * |  |                      QUOTA MANAGER                                |  |
  * |  |                                                                   |  |
  * |  |   Monitors: navigator.storage.estimate() on interval              |  |
@@ -761,7 +761,7 @@ export interface ITransaction {
  *                                      |
  *                     BroadcastChannel('storage-sync')
  *                                      |
- *               +----------------------▼------------------------+
+ *               +---------------------\/------------------------+
  *               |          ALL CONNECTED TABS / WINDOWS         |
  *               |                                               |
  *               |  Receives: ChangeEvent {                      |
@@ -774,7 +774,7 @@ export interface ITransaction {
  *               +-----------------------------------------------+
  * ```
  *
- * The methods here operate on **already-processed** data — validation,
+ * The methods here operate on **already-processed** data - validation,
  * serialization, encryption, and envelope attachment all happen in the
  * pipeline layer *before* calling the backend. The backend only deals with
  * strings (disk-backed) or arbitrary values (Memory).
@@ -808,7 +808,7 @@ export interface IStorageBackend<TRaw = string> {
   initialize(signal?: AbortSignal): Promise<void>
 
   /**
-   * Gracefully wind down this backend — flush pending writes, close
+   * Gracefully wind down this backend - flush pending writes, close
    * connections, release locks.
    */
   close(): Promise<void>
@@ -826,7 +826,7 @@ export interface IStorageBackend<TRaw = string> {
   /**
    * Read the raw envelope stored under `key`, or `null` if absent.
    *
-   * Does **not** decrypt, validate, or migrate — the pipeline layer owns that.
+   * Does **not** decrypt, validate, or migrate - the pipeline layer owns that.
    */
   read(key: CanonicalKey, options?: ReadOptions): Promise<StorageEnvelope<TRaw> | null>
 
@@ -860,7 +860,7 @@ export interface IStorageBackend<TRaw = string> {
   /**
    * Open a new transaction.
    *
-   * @param strength — The requested strength. If the backend cannot satisfy
+   * @param strength - The requested strength. If the backend cannot satisfy
    *   it, the returned promise rejects.
    */
   beginTransaction(strength?: TransactionStrength): Promise<ITransaction>
@@ -903,8 +903,8 @@ export interface IEncryptionProvider {
    * Initialize with the raw key material fetched from the remote key server.
    * Must be called before `encrypt` or `decrypt`.
    *
-   * @param keyMaterial — UUID string or raw key bytes from the remote endpoint.
-   * @param signal      — Abort the initialization (e.g. key-fetch timeout).
+   * @param keyMaterial - UUID string or raw key bytes from the remote endpoint.
+   * @param signal      - Abort the initialization (e.g. key-fetch timeout).
    */
   initialize(keyMaterial: string, signal?: AbortSignal): Promise<void>
 
