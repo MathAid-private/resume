@@ -3,7 +3,7 @@ import { markRaw } from "vue";
 import { v4 as uuidV4 } from "uuid";
 
 import { TAB_COUNTER_CHANNEL, TAB_COUNTER_STORAGE_KEY, WORKER_ERROR, WORKER_PORT_ERROR } from "@/constants";
-import { TabCountTransactionType } from "./tab.types";
+import { TabCountTransactionType } from "../tab.types";
 
 import type { FunctionLike } from "@/modules";
 import type {
@@ -12,10 +12,10 @@ import type {
   ITabCountResponse,
   ITabCountResponseData,
   TabOperative
-} from "./tab.types";
+} from "../tab.types";
 
 import { stringToHash } from "@/libs";
-import { BasicError, PlatformErrorEvent } from "../../manager.dto";
+import { BasicError, PlatformErrorEvent } from "../../../manager.dto";
 import TabCountWorker from "./tab-count.worker?sharedworker";
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared promise-callback helpers

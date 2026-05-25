@@ -1,9 +1,9 @@
 import type { App } from "vue";
 
-import type { GlobalStore } from "../global.store";
-import type { TabOperative } from "./tab.types";
+import type { GlobalStore } from "../../global.store";
+import type { TabOperative } from "../tab.types";
 
-import { runCleanup } from "../../util";
+import { runCleanup } from "../../../util";
 import { useBroadcastStrategy, useSequentialStrategy, useWorkerStrategy } from "./tab-count.strategy";
 
 export function useTabCount(tab: TabOperative) {
