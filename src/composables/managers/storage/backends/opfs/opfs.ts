@@ -335,10 +335,10 @@ export class OPFSBackend implements IStorageBackend<string> {
    *
    * @remarks
    * Boot sequence:
-   * 1. `navigator.storage.getDirectory()` → OPFS origin root
-   * 2. `getDirectoryHandle(rootDirName, { create: true })` → backend root dir
+   * 1. `navigator.storage.getDirectory()` -> OPFS origin root
+   * 2. `getDirectoryHandle(rootDirName, { create: true })` -> backend root dir
    * 3. {@link _replayWALIfPresent} — reads WAL, replays ops if non-empty
-   * 4. {@link readManifest} → populate `_manifest`
+   * 4. {@link readManifest} -> populate `_manifest`
    * 5. Set `_initialized = true`
    *
    * `signal` is checked between steps. If aborted (e.g., key-fetch timeout

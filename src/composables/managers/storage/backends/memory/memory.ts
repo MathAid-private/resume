@@ -35,7 +35,7 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  * +----------------------------------------------------------------------+
  * |                         FACADE  [NOT YET BUILT]                      |
  * |                                                                      |
- * |  • Resolves actualKey → CanonicalKey via buildCanonicalKey()         |
+ * |  • Resolves actualKey -> CanonicalKey via buildCanonicalKey()         |
  * |  • For transaction(): calls beginTransaction(), injects tx.id into   |
  * |    every op in the block, then commit() or rollback() on exit        |
  * |  • Forwards all ops to the pipeline                                  |
@@ -48,7 +48,7 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  * |  WRITE path                          READ path                       |
  * |  ─────────────────────               ──────────────────────          |
  * |  1. zod.parse(value)                 1. backend.read(key)            |
- * |  2. schema.serialize(value)          2. TTL check → null if expired  |
+ * |  2. schema.serialize(value)          2. TTL check -> null if expired  |
  * |     (skipped for memory)             3. encryption.decrypt(payload)  |
  * |  3. encryption.encrypt(str)             (skipped for memory)         |
  * |     (skipped for memory)             4. MigrationRunner.migrate()    |
@@ -94,13 +94,13 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  * |  |-> Phase 1: TTL sweep           |        |                         |
  * |  |   delete all expired           |        +-> _applyOps(ops)        |
  * |  |                                |            |                     |
- * |  +-> Phase 2: weighted sort       |            |-> write → _store    |
- * |      |                            |            |-> delete → _store   |
- * |      |-> sort by weight asc       |            +-> clear → _store    |
+ * |  +-> Phase 2: weighted sort       |            |-> write -> _store    |
+ * |      |                            |            |-> delete -> _store   |
+ * |      |-> sort by weight asc       |            +-> clear -> _store    |
  * |      |-> tie-break by policy      |                                  |
- * |      |   lru/fifo → written_at    |   (!) tx NOT removed from        |
- * |      |   lfu → _readCount         |     _transactions after commit   |
- * |      |   user → comparator fn     |     ← BUG: leaks forever         |
+ * |      |   lru/fifo -> written_at    |   (!) tx NOT removed from        |
+ * |      |   lfu -> _readCount         |     _transactions after commit   |
+ * |      |   user -> comparator fn     |     ← BUG: leaks forever         |
  * |      +-> delete until freed       |                                  |
  * |          >= targetBytes           |    tx.rollback()                 |
  * |                                   |    +-> ops[] = []  (discard)     |

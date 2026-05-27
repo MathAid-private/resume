@@ -23,10 +23,10 @@ Selected once in `preInitialize()` and never changed:
 
 ```
 SharedWorker available?
-  YES → useWorkerStrategy      (preferred)
-  NO  → BroadcastChannel available?
-          YES → useBroadcastStrategy
-          NO  → useSequentialStrategy
+  YES -> useWorkerStrategy      (preferred)
+  NO  -> BroadcastChannel available?
+          YES -> useBroadcastStrategy
+          NO  -> useSequentialStrategy
 ```
 
 Capabilities are read from the global support table (`GlobalStore.support`) that the global manager pre-computes at boot. No capability detection happens inside this module.
@@ -53,8 +53,8 @@ useTabCount(tab: TabOperative)
   │     ├── pagehide listener        ← tabHide() on page hidden / navigation away
   │     └── returns cleanup fn
   │
-  ├── show(tab) → strategy.show(tab) → INCR → store.count updated
-  └── hide(tab) → strategy.hide(tab) → DECR → store.count updated
+  ├── show(tab) -> strategy.show(tab) -> INCR -> store.count updated
+  └── hide(tab) -> strategy.hide(tab) -> DECR -> store.count updated
 ```
 
 ---
@@ -70,18 +70,18 @@ The SharedWorker (`tab-count.worker.ts`) is the single authoritative source of t
 **Lifecycle:**
 ```
 bootstrap()
-  → new TabCountWorker({ name: TAB_COUNTER_CHANNEL })
-  → port.start()
-  → port.onmessage = captureResponse
+  -> new TabCountWorker({ name: TAB_COUNTER_CHANNEL })
+  -> port.start()
+  -> port.onmessage = captureResponse
 
 show(tab) / hide(tab)
-  → postMessage({ type: INCR|DECR, payload: { id: tabId }, metadata: { actionId } })
-  → worker receives, updates state.tabs, broadcasts count to ALL ports
-  → captureResponse resolves the promise via countCallbacks[actionId]
+  -> postMessage({ type: INCR|DECR, payload: { id: tabId }, metadata: { actionId } })
+  -> worker receives, updates state.tabs, broadcasts count to ALL ports
+  -> captureResponse resolves the promise via countCallbacks[actionId]
 
 cleanup()
-  → port.close()
-  → countCallbacks cleared
+  -> port.close()
+  -> countCallbacks cleared
 ```
 
 **Promise tracking:** every request carries a UUID `actionId`. `registerPromise(actionId, tab, resolve, reject)` stores the resolve/reject pair in `tab.store.countCallbacks`. When the worker response arrives with a matching `actionId`, the promise is resolved and the callbacks are removed.
@@ -100,49 +100,49 @@ cleanup()
 
 | Message | Direction | Meaning |
 |---|---|---|
-| `HELLO` | Any → All | "I just opened, is there a leader?" |
-| `WELCOME` | Leader → sender | "Yes, here's the current tab list" |
-| `INCR` | Follower → All | "Register me as active" |
-| `DECR` | Follower → All | "Remove me" |
-| `COUNT` | Leader → All | "Updated count after a mutation" |
-| `HANDOFF` | Leader → All | "I'm closing, here's your new leader" |
-| `ELECTION` | Any → All | "Is there a leader?" |
-| `CLAIM` | Leader → All | "I am the leader" |
+| `HELLO` | Any -> All | "I just opened, is there a leader?" |
+| `WELCOME` | Leader -> sender | "Yes, here's the current tab list" |
+| `INCR` | Follower -> All | "Register me as active" |
+| `DECR` | Follower -> All | "Remove me" |
+| `COUNT` | Leader -> All | "Updated count after a mutation" |
+| `HANDOFF` | Leader -> All | "I'm closing, here's your new leader" |
+| `ELECTION` | Any -> All | "Is there a leader?" |
+| `CLAIM` | Leader -> All | "I am the leader" |
 
 #### `show()` sequence
 
 ```
-tab opens → send HELLO → start 150ms election timer
+tab opens -> send HELLO -> start 150ms election timer
   │
   ├── WELCOME arrives before timer?
-  │     YES → clearTimeout → become follower
-  │           send INCR(actionId) → wait for COUNT(actionId) → resolve promise
+  │     YES -> clearTimeout -> become follower
+  │           send INCR(actionId) -> wait for COUNT(actionId) -> resolve promise
   │
   └── Timer fires with no WELCOME?
-        → self-elect (becomeLeader([myId]))
-        → resolve({ count: 1 })
+        -> self-elect (becomeLeader([myId]))
+        -> resolve({ count: 1 })
 ```
 
 #### `hide()` sequence
 
 ```
 if leader:
-  → tabs.delete(myId)
-  → broadcast COUNT(newCount)
-  → resolve immediately (leader owns state, no round-trip needed)
+  -> tabs.delete(myId)
+  -> broadcast COUNT(newCount)
+  -> resolve immediately (leader owns state, no round-trip needed)
 
 if follower:
-  → send DECR(actionId)
-  → wait for COUNT(actionId) → resolve promise
+  -> send DECR(actionId)
+  -> wait for COUNT(actionId) -> resolve promise
 ```
 
 #### Leader closing
 
 ```
 cleanup() [leader]
-  → find remaining = tabs.filter(id !== myId)
-  → send HANDOFF({ nextLeaderId: remaining[0], tabs: remaining })
-  → remaining[0] receives HANDOFF → becomeLeader(tabs)
+  -> find remaining = tabs.filter(id !== myId)
+  -> send HANDOFF({ nextLeaderId: remaining[0], tabs: remaining })
+  -> remaining[0] receives HANDOFF -> becomeLeader(tabs)
 ```
 
 ---
@@ -168,26 +168,26 @@ Same leader-election model as BroadcastChannel but over `localStorage`. Used whe
 readLeader()
   │
   ├── No leader exists?
-  │     → set electionTimer (200ms)
-  │     → stash { resolve, reject, actionId } in pendingShow
+  │     -> set electionTimer (200ms)
+  │     -> stash { resolve, reject, actionId } in pendingShow
   │     │
   │     ├── LS_LEADER_KEY storage event fires before timer?
-  │     │     → clearTimeout
-  │     │     → sendFollowerRequest('incr', actionId, resolve, reject)
-  │     │     → wait for LS_RES_KEY storage event → resolve
+  │     │     -> clearTimeout
+  │     │     -> sendFollowerRequest('incr', actionId, resolve, reject)
+  │     │     -> wait for LS_RES_KEY storage event -> resolve
   │     │
   │     └── Timer fires?
-  │           → becomeLeader([myId, ...existingTabs])
-  │           → resolve({ count: tabs.size })
+  │           -> becomeLeader([myId, ...existingTabs])
+  │           -> resolve({ count: tabs.size })
   │
   └── Leader exists?
-        → sendFollowerRequest('incr', actionId, resolve, reject)
-        → leader reads LS_REQ_KEY storage event → processRequest
-        → leader writes LS_RES_KEY
-        → follower reads LS_RES_KEY storage event → resolve
+        -> sendFollowerRequest('incr', actionId, resolve, reject)
+        -> leader reads LS_REQ_KEY storage event -> processRequest
+        -> leader writes LS_RES_KEY
+        -> follower reads LS_RES_KEY storage event -> resolve
 ```
 
-**The storage event suppression advantage:** the leader writes `LS_RES_KEY` → the `storage` event fires in the requesting follower but NOT in the leader. This is intentional — the leader already updated its own state before writing, so it does not need the event. The follower reads the response, updates `store.count`, and resolves its promise.
+**The storage event suppression advantage:** the leader writes `LS_RES_KEY` -> the `storage` event fires in the requesting follower but NOT in the leader. This is intentional — the leader already updated its own state before writing, so it does not need the event. The follower reads the response, updates `store.count`, and resolves its promise.
 
 ---
 
@@ -214,13 +214,13 @@ window.name         ← survives same-tab navigation; shared with duplicated tab
 sessionStorage      ← survives refresh; isolated per tab (not shared with duplicates)
 
 if window.name === sessionStorage.getItem(STORAGE_KEY):
-  → confirmed stable identity from a previous load → return it
+  -> confirmed stable identity from a previous load -> return it
 
 else:
-  → generate newId = `tab_${crypto.randomUUID()}`
-  → window.name = newId
-  → sessionStorage.setItem(STORAGE_KEY, newId)
-  → return newId
+  -> generate newId = `tab_${crypto.randomUUID()}`
+  -> window.name = newId
+  -> sessionStorage.setItem(STORAGE_KEY, newId)
+  -> return newId
 ```
 
 A duplicated tab inherits `window.name` from its parent but starts with a fresh `sessionStorage`, so the two values differ, triggering a new UUID. After the first load of the duplicate, both agree on the new ID and it remains stable.
@@ -234,7 +234,7 @@ The SharedWorker maintains:
 ```ts
 state = {
   ports:         MessagePort[]   // one per connected tab
-  tabs:          Record<tabId, index>  // tabId → sequential slot index
+  tabs:          Record<tabId, index>  // tabId -> sequential slot index
   nextIndex:     number          // next available slot
   danglingIndex: number[]        // freed slots available for reuse
 }

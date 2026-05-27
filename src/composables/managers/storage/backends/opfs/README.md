@@ -39,28 +39,28 @@ OPFSBackend  (this module)
   ├─ _factory: IIOAdapterFactory                   ← sync or async IO
   │
   ├─ NON-TRANSACTIONAL
-  │    write()   → keyToFilePath → bytesToBase64 → _applyWrite → writeManifest
-  │    read()    → _manifest.get → TTL check → openDataFile → decodeBytes
-  │    delete()  → _applyDelete → writeManifest
-  │    clear()   → prefix scan → _applyDelete* → writeManifest
-  │    query()   → manifest scan → openDataFile per match → lazy TTL cleanup
-  │    evict()   → Phase 1: TTL sweep → Phase 2: weight sort → _applyDelete*
+  │    write()   -> keyToFilePath -> bytesToBase64 -> _applyWrite -> writeManifest
+  │    read()    -> _manifest.get -> TTL check -> openDataFile -> decodeBytes
+  │    delete()  -> _applyDelete -> writeManifest
+  │    clear()   -> prefix scan -> _applyDelete* -> writeManifest
+  │    query()   -> manifest scan -> openDataFile per match -> lazy TTL cleanup
+  │    evict()   -> Phase 1: TTL sweep -> Phase 2: weight sort -> _applyDelete*
   │
   └─ TRANSACTIONAL
-       beginTransaction() → new OPFSTransaction(_commitTransaction, _transactions.delete)
+       beginTransaction() -> new OPFSTransaction(_commitTransaction, _transactions.delete)
        write/delete/clear with { transactionId }
-         → tx.bufferWrite / bufferDelete / bufferClear
-         → ops[] grows, zero filesystem activity
+         -> tx.bufferWrite / bufferDelete / bufferClear
+         -> ops[] grows, zero filesystem activity
        tx.commit()
-         → OPFSBackend._commitTransaction(txId, ops)
+         -> OPFSBackend._commitTransaction(txId, ops)
              1. writeWAL(_wal.json)
-             2. _applyWALOps(ops) → files + manifest
+             2. _applyWALOps(ops) -> files + manifest
              3. writeManifest(_manifest.json)
              4. clearWAL(_wal.json)
              5. _transactions.delete(txId)
        tx.rollback()
-         → ops[] = [] (discard buffer, zero filesystem changes)
-         → _transactions.delete(txId)
+         -> ops[] = [] (discard buffer, zero filesystem changes)
+         -> _transactions.delete(txId)
 ```
 
 ---
@@ -103,10 +103,10 @@ The WAL is the mechanism that makes transactions safe across crashes.
 1. writeWAL(_wal.json)          ← crash here: nothing applied; WAL replayed next boot
 2. _applyWALOps(ops)            ← crash here: WAL replayed; reach final state
      for each op:
-       'write'  → _applyWrite (file + manifest)
-       'delete' → _applyDelete (file + manifest)
-       'clear'  → _applyClear (files + manifest entries)
-3. writeManifest(_manifest.json)← crash here: WAL replay → same result
+       'write'  -> _applyWrite (file + manifest)
+       'delete' -> _applyDelete (file + manifest)
+       'clear'  -> _applyClear (files + manifest entries)
+3. writeManifest(_manifest.json)← crash here: WAL replay -> same result
 4. clearWAL(_wal.json)          ← crash here: next boot replays; idempotent
 5. _transactions.delete(txId)
 ```
@@ -116,7 +116,7 @@ The WAL is the mechanism that makes transactions safe across crashes.
 Before the manifest is loaded, `_replayWALIfPresent` checks for a non-empty `_wal.json`:
 
 ```
-readWAL() → non-null?
+readWAL() -> non-null?
   ├── readManifest() into _manifest   (may be stale; WAL has the truth)
   ├── _applyWALOps(wal.ops)           (idempotent — safe to re-apply)
   ├── writeManifest(_manifest.json)   (persist corrected state)
@@ -161,7 +161,7 @@ OPFS provides no native multi-file transaction primitive. The WAL gives crash re
 
 ### `TRaw = string`
 
-`OPFSBackend` is typed `IStorageBackend<string>`. By the time `write(key, envelope)` is called, `envelope.payload` is already an encrypted, serialized string — the pipeline has already run `validate → serialize → encrypt`. The backend stores those bytes verbatim and returns them as-is on read. It never knows what the string contains.
+`OPFSBackend` is typed `IStorageBackend<string>`. By the time `write(key, envelope)` is called, `envelope.payload` is already an encrypted, serialized string — the pipeline has already run `validate -> serialize -> encrypt`. The backend stores those bytes verbatim and returns them as-is on read. It never knows what the string contains.
 
 ### Why payload is not in the manifest
 
@@ -189,23 +189,23 @@ Every successful `read()` increments a counter for that key in an in-memory `Map
 
 ```
 new OPFSBackend(config?)
-  └── detectIOAdapterFactory() → SyncIOAdapterFactory (worker) or AsyncIOAdapterFactory (main thread)
+  └── detectIOAdapterFactory() -> SyncIOAdapterFactory (worker) or AsyncIOAdapterFactory (main thread)
 
 probe()
-  → write/read/delete a temp file in the OPFS origin root
-  → { available: true, latency: Nms } or { available: false, reason: '...' }
+  -> write/read/delete a temp file in the OPFS origin root
+  -> { available: true, latency: Nms } or { available: false, reason: '...' }
 
 initialize(signal?)
-  1. navigator.storage.getDirectory() → origin root
-  2. getDirectoryHandle(rootDirName, { create: true }) → _rootDir
+  1. navigator.storage.getDirectory() -> origin root
+  2. getDirectoryHandle(rootDirName, { create: true }) -> _rootDir
   3. _replayWALIfPresent(signal)  ← crash recovery
-  4. readManifest(_rootDir) → _manifest
+  4. readManifest(_rootDir) -> _manifest
   5. _initialized = true
 
 close()
-  → rollback all pending transactions
-  → clear _manifest, _readCount, _transactions
-  → _rootDir = null, _initialized = false
+  -> rollback all pending transactions
+  -> clear _manifest, _readCount, _transactions
+  -> _rootDir = null, _initialized = false
   (OPFS files are NOT deleted)
 ```
 
@@ -245,7 +245,7 @@ try {
   await backend.write(keyA, envelopeA, { transactionId: tx.id })
   await backend.delete(keyB,            { transactionId: tx.id })
   await tx.commit()
-  // WAL written → ops applied → manifest rewritten → WAL cleared
+  // WAL written -> ops applied -> manifest rewritten -> WAL cleared
 } catch {
   await tx.rollback()
   // ops[] discarded, zero filesystem changes

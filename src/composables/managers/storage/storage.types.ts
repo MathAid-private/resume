@@ -722,7 +722,7 @@ export interface ITransaction {
  * |  |   transactions   transactions    transactions    transactions     |  |
  * |  |                                                                   |  |
  * |  |   Each strategy implements:                                       |  |
- * |  |     probe() → CapabilityResult                                    |  |
+ * |  |     probe() -> CapabilityResult                                    |  |
  * |  |     read(key) / write(key, envelope) / delete(key)                |  |
  * |  |     beginTx() / commitTx() / rollbackTx()                         |  |
  * |  |     estimateQuota() / evict(policy)                               |  |

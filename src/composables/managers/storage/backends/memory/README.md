@@ -32,25 +32,25 @@ PIPELINE  [pipeline layer — not in this module]
 MemoryBackend  (this module)
   │
   ├─ NON-TRANSACTIONAL
-  │    write()   → _store.set(key, envelope)
-  │    read()    → TTL check → _store.get(key) → _readCount[key]++
-  │    delete()  → _store.delete(key)
-  │    clear()   → _store.clear() or prefix scan
-  │    query()   → manifest scan with lazy TTL sweep
-  │    evict()   → Phase 1: TTL sweep → Phase 2: weight sort + policy tie-break
+  │    write()   -> _store.set(key, envelope)
+  │    read()    -> TTL check -> _store.get(key) -> _readCount[key]++
+  │    delete()  -> _store.delete(key)
+  │    clear()   -> _store.clear() or prefix scan
+  │    query()   -> manifest scan with lazy TTL sweep
+  │    evict()   -> Phase 1: TTL sweep -> Phase 2: weight sort + policy tie-break
   │
   └─ TRANSACTIONAL
-       beginTransaction() → new MemoryTransaction(_store, _applyOps)
+       beginTransaction() -> new MemoryTransaction(_store, _applyOps)
                             stored in _transactions[id]
        write/delete/clear with { transactionId }
-         → tx.bufferWrite / bufferDelete / bufferClear
-         → ops[] grows, _store untouched
+         -> tx.bufferWrite / bufferDelete / bufferClear
+         -> ops[] grows, _store untouched
        tx.commit()
-         → _onCommit(txId, ops) → _applyOps(txId, ops)
-         → ops flushed to _store atomically (single JS thread)
-         → _transactions.delete(txId)
+         -> _onCommit(txId, ops) -> _applyOps(txId, ops)
+         -> ops flushed to _store atomically (single JS thread)
+         -> _transactions.delete(txId)
        tx.rollback()
-         → ops[] = [] (discard buffer, nothing to undo)
+         -> ops[] = [] (discard buffer, nothing to undo)
 ```
 
 ---
@@ -95,9 +95,9 @@ The original `_applyOps` had a comment stating it should remove the transaction 
 new MemoryBackend()
   └── useMemoryStore()  ← Pinia store must be active (app.use(pinia) must have run)
 
-probe()         → always returns { available: true }; smoke-tests the Map directly
-initialize()    → sets _initialized = true; no async work needed
-close()         → rolls back all pending transactions, clears _store + _readCount
+probe()         -> always returns { available: true }; smoke-tests the Map directly
+initialize()    -> sets _initialized = true; no async work needed
+close()         -> rolls back all pending transactions, clears _store + _readCount
 ```
 
 `probe()` is trivially cheap and always succeeds — there is no environment in which an in-process Map is unavailable.

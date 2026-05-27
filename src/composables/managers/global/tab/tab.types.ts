@@ -22,7 +22,7 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  * selected at boot time based on the available browser capabilities detected
  * in the global support table.
  *
- * ## Strategy selection (decided in `tab-count.ts → preInitialize`)
+ * ## Strategy selection (decided in `tab-count.ts -> preInitialize`)
  *
  * ```
  *   SharedWorker available?
@@ -89,13 +89,13 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  * └──────────────┘       └──────────────┘       └──────────────┘
  *
  * Promise resolution:
- *   Tab stores { actionId → resolve/reject } in countCallbacks.
+ *   Tab stores { actionId -> resolve/reject } in countCallbacks.
  *   Worker echoes actionId back in response metadata.
  *   Only the requesting tab resolves its own promise;
  *   all other tabs update store.count silently.
  * ```
  *
- * **Failure mode:** Worker crashes → onerror fires → PlatformErrorEvent
+ * **Failure mode:** Worker crashes -> onerror fires -> PlatformErrorEvent
  * dispatched. Port is closed in cleanup; next bootstrap() reconnects.
  *
  * ---
@@ -150,7 +150,7 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  *     │     └── broadcasts COUNT { count, actionId, tabId: D }
  *     │
  *     └── Tab D receives COUNT
- *           └── resolvePromise(actionId) → show() resolves
+ *           └── resolvePromise(actionId) -> show() resolves
  *
  * Leader close / HANDOFF sequence:
  *   Tab A closes
@@ -168,7 +168,7 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  *           └── show() resolves with count: 1
  * ```
  *
- * **Failure mode:** Leader closes without HANDOFF (crash/kill) →
+ * **Failure mode:** Leader closes without HANDOFF (crash/kill) ->
  * next tab to call show() runs the ELECTION_TIMEOUT path and self-elects,
  * rebuilding state from scratch. Count may briefly show stale value.
  *
@@ -183,10 +183,10 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  * Four localStorage keys form the protocol:
  *
  * ```
- *   LS_LEADER_KEY  → tabId of current leader       (written by leader)
- *   LS_TABS_KEY    → JSON array of live tab IDs     (written by leader)
- *   LS_REQ_KEY     → LSRequest JSON                 (written by followers)
- *   LS_RES_KEY     → LSResponse JSON                (written by leader)
+ *   LS_LEADER_KEY  -> tabId of current leader       (written by leader)
+ *   LS_TABS_KEY    -> JSON array of live tab IDs     (written by leader)
+ *   LS_REQ_KEY     -> LSRequest JSON                 (written by followers)
+ *   LS_RES_KEY     -> LSResponse JSON                (written by leader)
  * ```
  *
  * The `storage` event fires in every tab EXCEPT the one that wrote it —
@@ -254,7 +254,7 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  *   (leader will process asynchronously via storage event)
  * ```
  *
- * **Failure mode:** Leader crashes without cleanup → LS_LEADER_KEY remains
+ * **Failure mode:** Leader crashes without cleanup -> LS_LEADER_KEY remains
  * stale. Next tab that calls show() checks the key, sends a follower request,
  * gets no response (no leader is listening), and eventually times out into
  * self-election. The ELECTION_TIMEOUT (200 ms) is intentionally longer than

@@ -14,7 +14,7 @@ export const MS_IN_DAY = MS_IN_SEC * SEC_IN_DAY;
 export const MS_IN_MONTH = MS_IN_DAY * AVG_DAYS_IN_MONTH;
 export const MS_IN_YEAR = MS_IN_DAY * AVG_DAYS_IN_YEAR;
 
-// Canonical unit order, most-significant → least-significant.
+// Canonical unit order, most-significant -> least-significant.
 export const UNITS: ReadonlyArray<keyof DurationRecord> = [
   'millennia', 'centuries', 'decades', 'years', 'months',
   'weeks', 'days', 'hours', 'minutes', 'seconds', 'milliseconds',

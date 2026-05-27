@@ -63,7 +63,7 @@ export function shouldRetry({
  * Wait = base * 2^attempts
  * Classic doubling strategy. Aggressive growth, good for rare transient faults.
  *
- * attempts: 1 → 200ms | 2 → 400ms | 3 → 800ms | 4 → 1600ms
+ * attempts: 1 -> 200ms | 2 -> 400ms | 3 -> 800ms | 4 -> 1600ms
  */
 function exponentialBackoff({
   timeout,
@@ -77,7 +77,7 @@ function exponentialBackoff({
  * Like exponential but the growth rate is user-controlled via retryMultiplier.
  * Set multiplier > 2 for faster back-off, < 2 for gentler growth.
  *
- * attempts: 1 → 300ms | 2 → 900ms | 3 → 2700ms  (base=100, multiplier=3)
+ * attempts: 1 -> 300ms | 2 -> 900ms | 3 -> 2700ms  (base=100, multiplier=3)
  */
 function multiplicativeExponentialBackoff({
   timeout,
@@ -92,7 +92,7 @@ function multiplicativeExponentialBackoff({
  * Steady, predictable growth. Good when you want gentle pressure without
  * the explosive growth of exponential strategies.
  *
- * attempts: 1 → 600ms | 2 → 1100ms | 3 → 1600ms  (base=100, multiplier=500)
+ * attempts: 1 -> 600ms | 2 -> 1100ms | 3 -> 1600ms  (base=100, multiplier=500)
  */
 function linearBackoff({
   timeout,
@@ -107,7 +107,7 @@ function linearBackoff({
  * Spreads retries across a window to avoid thundering-herd problems when many
  * clients fail simultaneously. Recommended for distributed systems.
  *
- * attempts: 1 → 0–200ms | 2 → 0–400ms | 3 → 0–800ms
+ * attempts: 1 -> 0–200ms | 2 -> 0–400ms | 3 -> 0–800ms
  */
 function exponentialBackoffWithJitter({
   timeout,
@@ -227,9 +227,9 @@ export function computeBackoff(
  * in the string representation of `x`.
  *
  * Examples:
- * - 3    => 1   (no decimal places → 10^0)
- * - 1.5  => 10  (1 decimal place  → 10^1)
- * - 0.75 => 100 (2 decimal places → 10^2)
+ * - 3    => 1   (no decimal places -> 10^0)
+ * - 1.5  => 10  (1 decimal place  -> 10^1)
+ * - 0.75 => 100 (2 decimal places -> 10^2)
  *
  * @param x - The number to inspect (must be finite and > 0).
  * @returns The power-of-ten scale corresponding to the fractional precision of `x`.
