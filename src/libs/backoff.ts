@@ -188,7 +188,7 @@ export function computeBackoff(
   retryStrategy: BackoffStrategy = BackoffStrategy.EXPONENTIAL
 ): number {
   // maxCapMs ||= computeMaxRetryDelay(timeout, retryMultiplier / getDecimalScale(retryMultiplier));
-  // Default cap: at least 30 s, or 100× the base timeout — whichever is larger.
+  // Default cap: at least 30 s, or 100× the base timeout - whichever is larger.
   // Using ??= (not ||=) so an explicit 0 isn't accidentally overwritten.
   maxCapMs ??= Math.max(30_000, timeout * 100);
 
@@ -270,7 +270,7 @@ export function sleep(milliseconds: number): Promise<void> {
  */
 function abortableSleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) return Promise.reject(signal.reason);
-  // No signal provided — plain sleep with no cancellation overhead.
+  // No signal provided - plain sleep with no cancellation overhead.
   if (!signal) return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
   // Capture as a non-optional local so TypeScript narrows without a `!` assertion.
   const abortSignal = signal;
@@ -293,8 +293,8 @@ function abortableSleep(milliseconds: number, signal?: AbortSignal): Promise<voi
  *
  * @description
  * `executeWithRetries` sits at the heart of the retry system. It runs the provided
- * `executor` in a loop, catching any thrown error and deciding — based on the configured
- * backoff strategy, attempt count, and optional `canRetry` veto — whether to wait and
+ * `executor` in a loop, catching any thrown error and deciding - based on the configured
+ * backoff strategy, attempt count, and optional `canRetry` veto - whether to wait and
  * try again or to surface the failure to the caller.
  *
  * #### How it works
@@ -303,7 +303,7 @@ function abortableSleep(milliseconds: number, signal?: AbortSignal): Promise<voi
  * 2. On failure, increments a local attempt counter and computes the next delay via
  *    {@link computeBackoff}, passing `previousWait` (the last single delay) as the seed
  *    so that {@link BackoffStrategy.DECORRELATED_JITTER} receives the correct input.
- * 3. If a `canRetry` predicate is supplied it acts as a hard veto gate — returning
+ * 3. If a `canRetry` predicate is supplied it acts as a hard veto gate - returning
  *    `false` causes the error to be re-thrown immediately regardless of how many attempts
  *    remain.
  * 4. If `canRetry` allows it (or is absent) **and** the attempt ceiling has not been
@@ -315,26 +315,26 @@ function abortableSleep(milliseconds: number, signal?: AbortSignal): Promise<voi
  * `maxRetries` values without risk of stack overflow.
  *
  * #### Pros
- * - **Transparent to callers** — just `await` the result; retry plumbing is invisible.
- * - **Fully configurable** — any {@link BackoffStrategy}, a custom `canRetry` veto, a
+ * - **Transparent to callers** - just `await` the result; retry plumbing is invisible.
+ * - **Fully configurable** - any {@link BackoffStrategy}, a custom `canRetry` veto, a
  *   custom multiplier, and an explicit cap are all first-class options.
- * - **Cancellable** — pass an `AbortSignal` via `config.signal` to interrupt any
+ * - **Cancellable** - pass an `AbortSignal` via `config.signal` to interrupt any
  *   scheduled inter-attempt sleep and prevent subsequent attempts from running.
- * - **Observable failure history** — pass a `config.stack` array to collect every
+ * - **Observable failure history** - pass a `config.stack` array to collect every
  *   caught error in order; inspect it after a terminal failure for full context.
- * - **Non-mutating** — all mutable state (`attempts`, `previousWait`) is local; the
+ * - **Non-mutating** - all mutable state (`attempts`, `previousWait`) is local; the
  *   caller's `config` object is never modified (`stack` is the sole documented exception).
- * - **Stack-safe** — loop-based execution handles hundreds of retries without recursion.
+ * - **Stack-safe** - loop-based execution handles hundreds of retries without recursion.
  *
  * #### Cons
- * - **Executor is not signal-aware by default** — `config.signal` cancels inter-attempt
+ * - **Executor is not signal-aware by default** - `config.signal` cancels inter-attempt
  *   sleeps and blocks new attempts, but an already in-flight `executor` call runs to
  *   completion unless the signal is also threaded through `args` and handled inside
  *   `executor` (e.g. passed to `fetch`).
- * - **Fixed arguments per call** — `executor` is always invoked with the same `args`. If
+ * - **Fixed arguments per call** - `executor` is always invoked with the same `args`. If
  *   the request must change between attempts (e.g. refreshing a bearer token) that logic
  *   must live inside `executor` itself.
- * - **Intermediate errors are discarded by default** — only the final error is re-thrown;
+ * - **Intermediate errors are discarded by default** - only the final error is re-thrown;
  *   pass a `config.stack` array to retain the full per-attempt failure history.
  *
  * #### When to use
@@ -384,7 +384,7 @@ function abortableSleep(milliseconds: number, signal?: AbortSignal): Promise<voi
  *   arguments, the optional `canRetry` predicate, an optional `AbortSignal`, and an
  *   optional `stack` error-collection array. All {@link BackoffParams} fields are
  *   optional and fall back to {@link RETRY_CONFIG_DEFAULTS} when omitted. The object
- *   itself is never reassigned — retry state is kept in local variables; `stack` is the
+ *   itself is never reassigned - retry state is kept in local variables; `stack` is the
  *   sole intentional mutation point.
  *
  * @returns A `Promise` that resolves with the value produced by `config.executor` on the
@@ -404,14 +404,14 @@ async function executeWithRetries<ARGS extends unknown[], R = unknown>(
     timeout = RETRY_CONFIG_DEFAULTS.timeout,
   } = config;
 
-  // Local mutable state — never mutates the caller's config object.
+  // Local mutable state - never mutates the caller's config object.
   let attempts = 0;
   // Tracks only the most recent delay so DECORRELATED_JITTER receives the
   // correct "previous wait" seed rather than a bloated cumulative total.
   let previousWait = 0;
 
   while (true) {
-    // Honour cancellation before every attempt — including the very first one.
+    // Honour cancellation before every attempt - including the very first one.
     if (config.signal?.aborted) throw config.signal.reason;
 
     try {
@@ -424,7 +424,7 @@ async function executeWithRetries<ARGS extends unknown[], R = unknown>(
 
       const backoffMs = computeBackoff(
         timeout,
-        previousWait, // previous single delay — seed for DECORRELATED_JITTER
+        previousWait, // previous single delay - seed for DECORRELATED_JITTER
         attempts,
         maxRetries,
         maxCapMs,
@@ -455,7 +455,7 @@ async function executeWithRetries<ARGS extends unknown[], R = unknown>(
  * `initExecuteWithRetries` is the recommended way to invoke the retry system. It wraps
  * {@link executeWithRetries} and adds a single, optional "warm-up" sleep before the very
  * first execution attempt. This is distinct from the per-failure backoff delays managed
- * internally by `executeWithRetries` — it fires once at start-up, before anything has
+ * internally by `executeWithRetries` - it fires once at start-up, before anything has
  * been tried.
  *
  * #### How it works
@@ -465,27 +465,27 @@ async function executeWithRetries<ARGS extends unknown[], R = unknown>(
  * 2. It then calls `executeWithRetries(config)`, which owns the full retry loop, backoff
  *    computation, `canRetry` gating, and final error propagation.
  * 3. The resolved or rejected result of `executeWithRetries` is forwarded directly to the
- *    caller — `initExecuteWithRetries` adds no further transformation.
+ *    caller - `initExecuteWithRetries` adds no further transformation.
  *
  * #### Pros
- * - **Single call-site** — callers never need to reference `executeWithRetries` directly;
+ * - **Single call-site** - callers never need to reference `executeWithRetries` directly;
  *   this function is the only public surface of the retry system.
- * - **Respects `Retry-After` headers** — set `config.sleep` to the server-mandated wait
+ * - **Respects `Retry-After` headers** - set `config.sleep` to the server-mandated wait
  *   time and the first attempt will not fire until that window has elapsed.
- * - **Initial sleep is also cancellable** — if `config.signal` is aborted during the
+ * - **Initial sleep is also cancellable** - if `config.signal` is aborted during the
  *   pre-flight pause, the sleep is cut short and the promise rejects immediately with
  *   `signal.reason`, without ever invoking `executor`.
- * - **Zero-overhead when unused** — when `config.sleep` is absent or `null`, the
+ * - **Zero-overhead when unused** - when `config.sleep` is absent or `null`, the
  *   function is a thin pass-through with no extra allocations or delays.
  *
  * #### Cons
- * - **Flat initial delay only** — `config.sleep` is a one-shot pause; it does not
+ * - **Flat initial delay only** - `config.sleep` is a one-shot pause; it does not
  *   influence `previousWait` or any subsequent per-failure delay calculation.
- * - **No partial-progress reporting** — there is no callback or event for observing
+ * - **No partial-progress reporting** - there is no callback or event for observing
  *   individual attempt outcomes between the initial sleep and the final resolution.
  *
  * #### When to use
- * - Calling APIs that return a `Retry-After` response header on a 429 — pass the header
+ * - Calling APIs that return a `Retry-After` response header on a 429 - pass the header
  *   value (converted to ms) as `config.sleep` to defer the first attempt correctly.
  * - Background jobs or queue consumers that should wait for a downstream service to
  *   finish its own warm-up sequence before beginning work after a cold start.
@@ -511,7 +511,7 @@ async function executeWithRetries<ARGS extends unknown[], R = unknown>(
  * @example <caption>Queue consumer that defers startup until the broker is ready</caption>
  * ```ts
  * // Wait 3 s for the message broker to finish its own startup sequence,
- * // then attempt to connect — retrying up to 5 times with decorrelated jitter
+ * // then attempt to connect - retrying up to 5 times with decorrelated jitter
  * // so that multiple consumer instances don't storm the broker simultaneously.
  * const connection = await initExecuteWithRetries({
  *   executor: broker.connect.bind(broker),
@@ -541,7 +541,7 @@ async function executeWithRetries<ARGS extends unknown[], R = unknown>(
  *   first successful attempt (after the optional initial sleep), rejects with the error
  *   thrown on the final failed attempt once all retries are exhausted or `canRetry` vetoes
  *   further attempts, or rejects with `config.signal.reason` if the signal is aborted at
- *   any point — including during the initial `config.sleep` pause.
+ *   any point - including during the initial `config.sleep` pause.
  */
 export async function initExecuteWithRetries<ARGS extends unknown[], R = unknown>(
   config: RetryConfig<ARGS, R>

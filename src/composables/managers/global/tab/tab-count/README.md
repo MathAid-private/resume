@@ -10,9 +10,9 @@ Tracks how many browser tabs have the platform open simultaneously. Exposes a re
 
 | File | Purpose |
 |---|---|
-| `tab-count.ts` | `useTabCount()` — lifecycle orchestration, strategy delegation, double-increment guard |
+| `tab-count.ts` | `useTabCount()` - lifecycle orchestration, strategy delegation, double-increment guard |
 | `tab-count.strategy.ts` | Three strategy implementations: Worker, BroadcastChannel, localStorage |
-| `tab-count.worker.ts` | SharedWorker script — the coordinator for `useWorkerStrategy` |
+| `tab-count.worker.ts` | SharedWorker script - the coordinator for `useWorkerStrategy` |
 | `index.ts` | Barrel export |
 
 ---
@@ -61,11 +61,11 @@ useTabCount(tab: TabOperative)
 
 ## The three strategies
 
-### `useWorkerStrategy` — SharedWorker
+### `useWorkerStrategy` - SharedWorker
 
 The SharedWorker (`tab-count.worker.ts`) is the single authoritative source of truth. All tabs connect to the same worker instance via MessagePort. The worker holds `state.tabs: Record<tabId, index>` and broadcasts updated counts to every connected port after each INCR or DECR.
 
-**Why this works for cross-tab counting:** the worker process outlives any individual tab. State is never duplicated across tabs — there is exactly one copy, in the worker.
+**Why this works for cross-tab counting:** the worker process outlives any individual tab. State is never duplicated across tabs - there is exactly one copy, in the worker.
 
 **Lifecycle:**
 ```
@@ -86,15 +86,15 @@ cleanup()
 
 **Promise tracking:** every request carries a UUID `actionId`. `registerPromise(actionId, tab, resolve, reject)` stores the resolve/reject pair in `tab.store.countCallbacks`. When the worker response arrives with a matching `actionId`, the promise is resolved and the callbacks are removed.
 
-**Decrement reliability:** `pagehide` is used instead of `beforeunload`. `beforeunload` fires when the page is already tearing down — postMessage to a SharedWorker from a closing port is unreliable at that point. `pagehide` fires earlier in the lifecycle and is also triggered by BFCache navigation (back/forward button), which makes it the correct event for both close and navigation scenarios.
+**Decrement reliability:** `pagehide` is used instead of `beforeunload`. `beforeunload` fires when the page is already tearing down - postMessage to a SharedWorker from a closing port is unreliable at that point. `pagehide` fires earlier in the lifecycle and is also triggered by BFCache navigation (back/forward button), which makes it the correct event for both close and navigation scenarios.
 
 ---
 
-### `useBroadcastStrategy` — BroadcastChannel + leader election
+### `useBroadcastStrategy` - BroadcastChannel + leader election
 
 **The core problem with naive BroadcastChannel counting:** `BroadcastChannel.postMessage` delivers to every context on the same channel *except the sender*. Each tab also starts with its own empty in-memory state. If Tab B opens and creates its own `tabs: Set`, it counts itself as the only tab and never learns about Tab A.
 
-**The fix — leader election:** one tab owns all state. Others are followers that send requests to the leader.
+**The fix - leader election:** one tab owns all state. Others are followers that send requests to the leader.
 
 #### Protocol messages
 
@@ -147,11 +147,11 @@ cleanup() [leader]
 
 ---
 
-### `useSequentialStrategy` — localStorage + leader election
+### `useSequentialStrategy` - localStorage + leader election
 
 Same leader-election model as BroadcastChannel but over `localStorage`. Used when BroadcastChannel is unavailable (some private-mode browsers, older environments).
 
-**Why `localStorage` instead of `sessionStorage`:** `sessionStorage` is completely isolated per tab — it cannot be shared. `localStorage` is shared across tabs from the same origin. The `storage` event fires in every tab *except* the one that wrote, which is exactly what enables the cross-tab messaging pattern.
+**Why `localStorage` instead of `sessionStorage`:** `sessionStorage` is completely isolated per tab - it cannot be shared. `localStorage` is shared across tabs from the same origin. The `storage` event fires in every tab *except* the one that wrote, which is exactly what enables the cross-tab messaging pattern.
 
 #### Storage keys
 
@@ -187,7 +187,7 @@ readLeader()
         -> follower reads LS_RES_KEY storage event -> resolve
 ```
 
-**The storage event suppression advantage:** the leader writes `LS_RES_KEY` -> the `storage` event fires in the requesting follower but NOT in the leader. This is intentional — the leader already updated its own state before writing, so it does not need the event. The follower reads the response, updates `store.count`, and resolves its promise.
+**The storage event suppression advantage:** the leader writes `LS_RES_KEY` -> the `storage` event fires in the requesting follower but NOT in the leader. This is intentional - the leader already updated its own state before writing, so it does not need the event. The follower reads the response, updates `store.count`, and resolves its promise.
 
 ---
 
@@ -261,7 +261,7 @@ state = {
 
 ## Known limitations
 
-**No decrement on hard close (sequential strategy).** When a tab is force-closed (process kill, browser crash), the leader's cleanup code does not run. The stale tab remains in `LS_TABS_KEY` until the leader next writes it. A future improvement would add a heartbeat key with a TTL — the leader periodically writes a timestamp, and on the next boot, tabs older than `2 × heartbeat_interval` are pruned.
+**No decrement on hard close (sequential strategy).** When a tab is force-closed (process kill, browser crash), the leader's cleanup code does not run. The stale tab remains in `LS_TABS_KEY` until the leader next writes it. A future improvement would add a heartbeat key with a TTL - the leader periodically writes a timestamp, and on the next boot, tabs older than `2 × heartbeat_interval` are pruned.
 
 **BroadcastChannel leader dies without handoff.** If the leader tab crashes (as opposed to closing normally), no `HANDOFF` message is sent. Remaining followers continue as followers with no leader until one of them calls `show()`, triggers an election timer, gets no `CLAIM` response, and self-elects. This window is at most `ELECTION_TIMEOUT_MS` (150ms) and resolves automatically.
 

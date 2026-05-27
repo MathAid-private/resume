@@ -104,10 +104,10 @@
  *
  * The key insight the diagram makes visible: the non-transactional path writes
  * directly to `_store` and is complete in one step. The transactional path adds
- * a staging layer — `MemoryTransaction._ops[]` acts as a write-ahead buffer that
+ * a staging layer - `MemoryTransaction._ops[]` acts as a write-ahead buffer that
  * only lands in `_store` when `_onCommit` fires. Rollback is free because the buffer
  * is simply discarded; no compensating writes are needed. This is why "best-effort"
- * is the honest label — the atomicity guarantee only holds within the single JS thread,
+ * is the honest label - the atomicity guarantee only holds within the single JS thread,
  * and there is no durability (no disk, no crash recovery).
  *
  * @module memory

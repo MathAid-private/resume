@@ -126,17 +126,17 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  *
  * The key insight the diagram makes visible: the non-transactional path writes
  * directly to `_store` and is complete in one step. The transactional path adds
- * a staging layer — `MemoryTransaction._ops[]` acts as a write-ahead buffer that
+ * a staging layer - `MemoryTransaction._ops[]` acts as a write-ahead buffer that
  * only lands in `_store` when `_onCommit` fires. Rollback is free because the buffer
  * is simply discarded; no compensating writes are needed. This is why "best-effort"
- * is the honest label — the atomicity guarantee only holds within the single JS thread,
+ * is the honest label - the atomicity guarantee only holds within the single JS thread,
  * and there is no durability (no disk, no crash recovery).
  *
  * Lifecycle intent:
  *   - Used as a last-resort fallback when all disk-backed backends fail.
  *   - Also used as a write-through/read-through cache layer above other
  *     backends (that use case is handled at the pipeline layer, not here).
- *   - Data is intentionally lost on page reload — this is by design.
+ *   - Data is intentionally lost on page reload - this is by design.
  */
 export class MemoryBackend implements IStorageBackend<unknown> {
 
@@ -151,7 +151,7 @@ export class MemoryBackend implements IStorageBackend<unknown> {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   async probe(): Promise<CapabilityResult> {
-    // Memory is always available — there's nothing that can go wrong.
+    // Memory is always available - there's nothing that can go wrong.
     const start = performance.now()
     const testKey = '__probe__' as CanonicalKey
     this.store._store.set(testKey, {
@@ -167,7 +167,7 @@ export class MemoryBackend implements IStorageBackend<unknown> {
   }
 
   async close(): Promise<void> {
-    // Flush all pending transactions (rollback — we cannot commit to nowhere).
+    // Flush all pending transactions (rollback - we cannot commit to nowhere).
     for (const tx of this.store._transactions.values()) {
       await tx.rollback()
     }
@@ -330,7 +330,7 @@ export class MemoryBackend implements IStorageBackend<unknown> {
         used += key.length * 2  // UTF-16 characters
         used += JSON.stringify(envelope).length * 2
       } catch {
-        // Non-serializable value — estimate conservatively
+        // Non-serializable value - estimate conservatively
         used += 256
       }
     }

@@ -8,7 +8,7 @@
  * - {@link SyncFileIOAdapter} / {@link SyncIOAdapterFactory}
  *   Wraps `FileSystemSyncAccessHandle`. Available **only in Worker contexts**
  *   (SharedWorker, DedicatedWorker, ServiceWorker). Synchronous at the OS
- *   level — no promise scheduling on every byte transfer. This is the
+ *   level - no promise scheduling on every byte transfer. This is the
  *   preferred IO path when the backend runs in a SharedWorker.
  *
  * - {@link AsyncFileIOAdapter} / {@link AsyncIOAdapterFactory}
@@ -28,7 +28,7 @@
  * ## Quirks
  * ### ArrayBuffer vs SharedArrayBuffer
  * `FileSystemSyncAccessHandle.write()` and `FileSystemWritableFileStream.write()`
- * both require `ArrayBufferView<ArrayBuffer>` — they reject views backed by a
+ * both require `ArrayBufferView<ArrayBuffer>` - they reject views backed by a
  * `SharedArrayBuffer`. `encodeString()` produces a `Uint8Array` whose `.buffer`
  * may be a `SharedArrayBuffer` in certain environments (e.g., when
  * `crossOriginIsolated` is true and the runtime uses shared memory for
@@ -65,7 +65,7 @@ const _decoder = new TextDecoder()
  * @remarks
  * Module-level encoder instance is reused to avoid repeated allocations.
  * The returned `Uint8Array` may share an `ArrayBuffer` with the encoder's
- * internal buffer in some runtimes — see the fileoverview note on
+ * internal buffer in some runtimes - see the fileoverview note on
  * `SharedArrayBuffer` for why adapters defensively copy before writing.
  */
 export function encodeString(s: string): Uint8Array  { return _encoder.encode(s) }
@@ -79,7 +79,7 @@ export function encodeString(s: string): Uint8Array  { return _encoder.encode(s)
 export function decodeBytes(b: Uint8Array): string   { return _decoder.decode(b) }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sync adapter — Worker context only
+// Sync adapter - Worker context only
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -112,7 +112,7 @@ class SyncFileIOAdapter implements IFileIOAdapter {
   }
 
   async writeAll(data: Uint8Array): Promise<void> {
-    // Truncate first — guarantees no stale bytes beyond the new content length
+    // Truncate first - guarantees no stale bytes beyond the new content length
     this._handle.truncate(0)
     // Copy to plain ArrayBuffer if needed (guards against SharedArrayBuffer)
     const plain = data.buffer instanceof ArrayBuffer
@@ -135,7 +135,7 @@ class SyncFileIOAdapter implements IFileIOAdapter {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Async adapter — main thread (and Worker fallback)
+// Async adapter - main thread (and Worker fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -161,7 +161,7 @@ class AsyncFileIOAdapter implements IFileIOAdapter {
   constructor(private readonly _handle: FileSystemFileHandle) {}
 
   async readAll(): Promise<Uint8Array> {
-    // getFile() returns a snapshot — safe to call multiple times
+    // getFile() returns a snapshot - safe to call multiple times
     const file   = await this._handle.getFile()
     const buffer = await file.arrayBuffer()
     return new Uint8Array(buffer)
@@ -184,7 +184,7 @@ class AsyncFileIOAdapter implements IFileIOAdapter {
     await writable.close()
   }
 
-  /** No-op — async adapter holds no persistent handle between calls. */
+  /** No-op - async adapter holds no persistent handle between calls. */
   async close(): Promise<void> {}
 }
 
@@ -222,7 +222,7 @@ export class SyncIOAdapterFactory implements IIOAdapterFactory {
  * Creates {@link AsyncFileIOAdapter} instances.
  *
  * @remarks
- * Safe to use in any context — main thread, SharedWorker, DedicatedWorker.
+ * Safe to use in any context - main thread, SharedWorker, DedicatedWorker.
  * Falls back automatically when sync handles are not available.
  *
  * @example
@@ -250,9 +250,9 @@ export class AsyncIOAdapterFactory implements IIOAdapterFactory {
  *
  * @remarks
  * Detection criteria for Worker context (sync adapter):
- * 1. `typeof window === 'undefined'` — not the main thread.
- * 2. `typeof FileSystemFileHandle !== 'undefined'` — OPFS is available.
- * 3. `'createSyncAccessHandle' in FileSystemFileHandle.prototype` — sync handles exist.
+ * 1. `typeof window === 'undefined'` - not the main thread.
+ * 2. `typeof FileSystemFileHandle !== 'undefined'` - OPFS is available.
+ * 3. `'createSyncAccessHandle' in FileSystemFileHandle.prototype` - sync handles exist.
  *
  * If any condition fails, the async factory is returned as the safe default.
  *

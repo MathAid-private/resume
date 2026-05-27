@@ -5,7 +5,7 @@ import type { IBrowserInfo, BrowserName, RenderingEngine } from "@/types/user-ag
 /* ─── Main (async) entry point ───────────────────────── */
 
 /**
- * detectBrowser — fully async to support Brave detection.
+ * detectBrowser - fully async to support Brave detection.
  *
  * Brave deliberately omits any unique UA token and clones
  * Chrome's UA string. The only reliable signal is the
@@ -25,7 +25,7 @@ export async function detectBrowser(
   const info = detectFromUA(ua);
 
   // Only attempt the Brave check when we'd otherwise call
-  // this browser "Chrome" — Brave's UA is indistinguishable
+  // this browser "Chrome" - Brave's UA is indistinguishable
   // from Chrome via regex alone.
   if (info.name === 'Chrome' && typeof navigator !== 'undefined') {
     const brave = await checkBrave();
@@ -45,7 +45,7 @@ async function checkBrave(): Promise<boolean> {
       return await navigator.brave.isBrave();
     }
   } catch {
-    // navigator.brave exists but threw — not Brave
+    // navigator.brave exists but threw - not Brave
   }
   return false;
 }
@@ -58,7 +58,7 @@ function detectFromUA(ua: string): IBrowserInfo {
     return m ? m[1] : 'unknown';
   }
 
-  // 1. Internet Explorer — MSIE or Trident (IE 11 uses rv:)
+  // 1. Internet Explorer - MSIE or Trident (IE 11 uses rv:)
   if (/MSIE |Trident\//.test(ua)) {
     const v = /MSIE ([\d.]+)/.test(ua)
       ? RegExp.$1
@@ -70,7 +70,7 @@ function detectFromUA(ua: string): IBrowserInfo {
   if (/Edge\//.test(ua))
     return build('Edge (Legacy)', ver(/Edge\/([\d.]+)/), 'EdgeHTML', ua, UserAgentKind.EDGE_LEGACY);
 
-  // 3. Edge Chromium — token is "Edg/" (no trailing 'e')
+  // 3. Edge Chromium - token is "Edg/" (no trailing 'e')
   if (/Edg\//.test(ua))
     return build('Edge', ver(/Edg\/([\d.]+)/), 'Blink', ua, UserAgentKind.EDGE);
 
@@ -82,7 +82,7 @@ function detectFromUA(ua: string): IBrowserInfo {
   if (/Opera\/|Opera\s/.test(ua))
     return build('Opera', ver(/Opera[\/\s]([\d.]+)/), 'Presto', ua, UserAgentKind.OPERA);
 
-  // 6. Samsung Internet — must precede Chrome
+  // 6. Samsung Internet - must precede Chrome
   if (/SamsungBrowser\//.test(ua))
     return build('Samsung Internet', ver(/SamsungBrowser\/([\d.]+)/), 'Blink', ua, UserAgentKind.SAMSUNG);
 
@@ -90,7 +90,7 @@ function detectFromUA(ua: string): IBrowserInfo {
   if (/UCBrowser\//.test(ua))
     return build('UC Browser', ver(/UCBrowser\/([\d.]+)/), 'WebKit', ua, UserAgentKind.UC);
 
-  // 8. Chrome / Chromium — NOTE: Brave hits this branch;
+  // 8. Chrome / Chromium - NOTE: Brave hits this branch;
   //    the async detectBrowser() caller upgrades it if needed.
   if (/Chrome\//.test(ua) && !/Chromium\//.test(ua))
     return build('Chrome', ver(/Chrome\/([\d.]+)/), 'Blink', ua, UserAgentKind.CHROME);
@@ -106,7 +106,7 @@ function detectFromUA(ua: string): IBrowserInfo {
   if (/FxiOS\//.test(ua))
     return build('Firefox iOS', ver(/FxiOS\/([\d.]+)/), 'WebKit', ua, UserAgentKind.FIREFOX_IOS);
 
-  // 11. Safari — must come after all Chrome/Edge/Opera checks
+  // 11. Safari - must come after all Chrome/Edge/Opera checks
   if (/Safari\//.test(ua) && /Version\//.test(ua))
     return build('Safari', ver(/Version\/([\d.]+)/), 'WebKit', ua, UserAgentKind.SAFARI);
 

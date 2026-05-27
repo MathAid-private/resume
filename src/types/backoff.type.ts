@@ -80,7 +80,7 @@ export type RetryConfig<ARGS extends unknown[], R = unknown> = Partial<BackoffPa
    * top of every loop iteration, so an already-aborted signal prevents even the first
    * execution attempt from starting.
    *
-   * This does **not** cancel an in-flight `executor` call — aborting a running async
+   * This does **not** cancel an in-flight `executor` call - aborting a running async
    * operation is the executor's responsibility. Thread the signal through `args` and
    * handle it inside `executor` (e.g. pass it to `fetch`) to achieve full cancellation.
    *
@@ -106,8 +106,8 @@ export type RetryConfig<ARGS extends unknown[], R = unknown> = Partial<BackoffPa
    * succeeds, exhausts its retries, is vetoed by `canRetry`, or is cancelled via
    * `signal`.
    *
-   * The array reference is never reassigned — only `Array.prototype.push` is called on
-   * it — making it the one intentional, documented mutation point in the retry system.
+   * The array reference is never reassigned - only `Array.prototype.push` is called on
+   * it - making it the one intentional, documented mutation point in the retry system.
    *
    * @example
    * ```ts

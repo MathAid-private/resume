@@ -65,7 +65,7 @@ export enum BackoffStrategy {
    * - Without a cap, wait times can grow unbounded. Pair with `CappedExponential`
    *   or enforce a `maxRetries` ceiling to avoid indefinite stalling.
    * - In high-concurrency systems, all clients doubling simultaneously can create
-   *   a **thundering herd** — consider `EXPONENTIAL_WITH_JITTER` instead.
+   *   a **thundering herd** - consider `EXPONENTIAL_WITH_JITTER` instead.
    *
    * @example
    * // base=100ms, attempt=3 -> 100 * 2^3 = 800ms
@@ -103,7 +103,7 @@ export enum BackoffStrategy {
    * - A/B testing retry sensitivity without changing strategy logic.
    *
    * #### Caveats
-   * - A multiplier ≤ 1 will produce flat or shrinking waits — validate inputs.
+   * - A multiplier ≤ 1 will produce flat or shrinking waits - validate inputs.
    * - High multipliers (> 3) can reach extreme wait times after very few attempts.
    *
    * @example
@@ -144,7 +144,7 @@ export enum BackoffStrategy {
    *   (e.g. form submissions, file uploads).
    *
    * #### Caveats
-   * - Grows too slowly for severely overloaded services — they may never recover
+   * - Grows too slowly for severely overloaded services - they may never recover
    *   if retries arrive faster than the service can shed load.
    * - Not suitable as the sole strategy in high-concurrency scenarios without jitter.
    *
@@ -169,7 +169,7 @@ export enum BackoffStrategy {
    * client independently samples this window, retry storms are naturally dispersed
    * across time even when thousands of clients fail simultaneously.
    *
-   * #### Growth profile (base = 100ms) — illustrative samples
+   * #### Growth profile (base = 100ms) - illustrative samples
    * | Attempt | Cap    | Possible wait range |
    * |---------|--------|---------------------|
    * | 1       | 200ms  | 0 – 200ms           |
@@ -186,7 +186,7 @@ export enum BackoffStrategy {
    * #### Caveats
    * - Can produce very short waits (near 0ms) by chance, which may not give a
    *   struggling service enough time to recover. Consider a minimum floor if needed.
-   * - Non-deterministic — harder to unit test without mocking `Math.random()`.
+   * - Non-deterministic - harder to unit test without mocking `Math.random()`.
    *
    * @see {@link BackoffStrategy.DECORRELATED_JITTER} for an alternative jitter approach
    * that avoids correlation with the previous wait.
@@ -213,7 +213,7 @@ export enum BackoffStrategy {
    * synchronising into waves even when they started retrying at the same time.
    * `accumulatedTimeoutMs` serves as the seed for `previousWait`.
    *
-   * #### Growth profile (base = 100ms, cap = 30,000ms) — illustrative samples
+   * #### Growth profile (base = 100ms, cap = 30,000ms) - illustrative samples
    * | Attempt | Previous wait | Upper bound | Possible wait range  |
    * |---------|--------------|-------------|----------------------|
    * | 1       | 100ms (seed) | 300ms       | 100 – 300ms          |
@@ -228,7 +228,7 @@ export enum BackoffStrategy {
    * #### Caveats
    * - Requires tracking `accumulatedTimeoutMs` across attempts to use as the previous-wait seed.
    * - Slightly more complex to implement and reason about than pure jitter strategies.
-   * - The `3×` multiplier is a convention, not a law — adjust for your traffic profile.
+   * - The `3×` multiplier is a convention, not a law - adjust for your traffic profile.
    *
    * @see {@link https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/}
    *

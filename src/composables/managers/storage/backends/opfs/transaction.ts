@@ -135,7 +135,7 @@ import type { IOPFSTransaction, ManifestEntry, WALOp } from './opfs.types'
  */
 export class OPFSTransaction implements IOPFSTransaction {
   readonly id:       string
-  /** Fixed at `'compensating'` — OPFS cannot offer serializable transactions. */
+  /** Fixed at `'compensating'` - OPFS cannot offer serializable transactions. */
   readonly strength: Extract<TransactionStrength, 'compensating'> = 'compensating'
 
   /**
@@ -155,10 +155,10 @@ export class OPFSTransaction implements IOPFSTransaction {
   private _settled = false
 
   /**
-   * @param _onCommit   — Provided by {@link OPFSBackend._commitTransaction}.
+   * @param _onCommit   - Provided by {@link OPFSBackend._commitTransaction}.
    *   Receives the full op buffer and owns all filesystem work: WAL write,
    *   op application, manifest rewrite, WAL clear.
-   * @param _onRollback — Provided by {@link OPFSBackend}. Removes this
+   * @param _onRollback - Provided by {@link OPFSBackend}. Removes this
    *   transaction from the backend's active-transaction registry so it can
    *   be garbage collected.
    */
@@ -226,7 +226,7 @@ export class OPFSTransaction implements IOPFSTransaction {
    * After this resolves, the transaction is settled and cannot be reused.
    *
    * @throws If any filesystem step fails. The WAL is preserved on disk for
-   * crash recovery — {@link OPFSBackend.initialize} will replay it on the
+   * crash recovery - {@link OPFSBackend.initialize} will replay it on the
    * next boot.
    */
   async commit(): Promise<void> {

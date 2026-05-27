@@ -16,12 +16,14 @@
  *             <==  opfs.transaction
  *             <==  opfs.backend
  * ```
- * `opfs.types` is a leaf — it imports nothing from the OPFS module itself.
+ * `opfs.types` is a leaf - it imports nothing from the OPFS module itself.
  */
 
 import type {
   BackendKind,
   CanonicalKey,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  EvictionPolicy,
   ITransaction,
   TransactionStrength
 } from '../../storage.types'
@@ -34,8 +36,8 @@ import type {
  * running.
  *
  * @remarks
- * The distinction matters because `FileSystemSyncAccessHandle` — the fastest
- * OPFS IO path — is only available inside Worker contexts (SharedWorker,
+ * The distinction matters because `FileSystemSyncAccessHandle` - the fastest
+ * OPFS IO path - is only available inside Worker contexts (SharedWorker,
  * DedicatedWorker, ServiceWorker). On the main UI thread the only available
  * IO path is the fully async `FileSystemWritableFileStream`.
  *
@@ -140,7 +142,7 @@ export type ManifestWire = Array<[CanonicalKey, ManifestEntry]>
  * The set of mutation kinds that can appear in the WAL.
  *
  * @remarks
- * **Reads are intentionally absent.** The WAL records mutations only —
+ * **Reads are intentionally absent.** The WAL records mutations only -
  * things that change stored state and therefore need to be recoverable.
  * A `read` inside a transaction does not change state, so there is nothing
  * to log or replay.
@@ -277,9 +279,9 @@ export interface WALFile {
  *
  * @remarks
  * Implementations differ by execution context:
- * - {@link SyncFileIOAdapter} — uses `FileSystemSyncAccessHandle` (Worker only).
+ * - {@link SyncFileIOAdapter} - uses `FileSystemSyncAccessHandle` (Worker only).
  *   Synchronous kernel-level reads and writes; lowest latency.
- * - {@link AsyncFileIOAdapter} — uses `FileSystemWritableFileStream` (any context).
+ * - {@link AsyncFileIOAdapter} - uses `FileSystemWritableFileStream` (any context).
  *   Fully async; slightly higher overhead per operation.
  *
  * Both implementations expose the same async interface to the backend so
@@ -315,7 +317,7 @@ export interface IFileIOAdapter {
    * @remarks
    * For the sync adapter this closes the `FileSystemSyncAccessHandle`, which
    * releases the exclusive lock. **Always call `close()` after each operation
-   * sequence** — failing to do so will prevent other tabs or contexts from
+   * sequence** - failing to do so will prevent other tabs or contexts from
    * opening a sync handle on the same file.
    *
    * For the async adapter this is a no-op (no persistent handle is held).
@@ -350,14 +352,14 @@ export interface IIOAdapterFactory {
  *
  * @example
  * ```ts
- * // SharedWorker — use sync IO, isolate under 'app-cache' directory
+ * // SharedWorker - use sync IO, isolate under 'app-cache' directory
  * const backend = new OPFSBackend({
  *   rootDirName:   'app-cache',
  *   context:       'worker',
  *   lockTimeoutMs: 3_000,
  * })
  *
- * // Main thread — auto-detect, default directory
+ * // Main thread - auto-detect, default directory
  * const backend = new OPFSBackend()
  * ```
  */
@@ -414,19 +416,19 @@ export interface OPFSBackendConfig {
  * a write/delete/clear call.
  *
  * Callers who obtain a transaction via {@link OPFSBackend.beginTransaction}
- * receive this typed as the narrower {@link ITransaction} — the buffer
+ * receive this typed as the narrower {@link ITransaction} - the buffer
  * methods are an internal contract between the backend and its transaction
  * objects, not part of the public API.
  *
  * Transaction strength is permanently fixed at `'compensating'`:
  * - Ops are buffered in memory until `commit()`.
- * - `commit()` writes the WAL then applies ops — recoverable on crash.
- * - `rollback()` discards the buffer — zero filesystem changes.
+ * - `commit()` writes the WAL then applies ops - recoverable on crash.
+ * - `rollback()` discards the buffer - zero filesystem changes.
  *
  * @see {@link OPFSTransaction} for the concrete implementation.
  */
 export interface IOPFSTransaction extends ITransaction {
-  /** Always `'compensating'` — OPFS cannot provide serializable transactions. */
+  /** Always `'compensating'` - OPFS cannot provide serializable transactions. */
   readonly strength: Extract<TransactionStrength, 'compensating'>
   /** The accumulated op buffer. Exposed for inspection; do not mutate externally. */
   readonly ops: WALOp[]

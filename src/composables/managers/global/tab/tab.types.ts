@@ -189,7 +189,7 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  *   LS_RES_KEY     -> LSResponse JSON                (written by leader)
  * ```
  *
- * The `storage` event fires in every tab EXCEPT the one that wrote it —
+ * The `storage` event fires in every tab EXCEPT the one that wrote it -
  * this asymmetry is load-bearing for the protocol:
  *
  * ```
@@ -287,7 +287,7 @@ export type TabOperative<M extends object = Record<string, unknown>> = {
  * ```
  *
  * Cleanup (all strategies): `for (const h of Object.keys(countCallbacks))
- * delete countCallbacks[h]` — drains unresolved promises on teardown to
+ * delete countCallbacks[h]` - drains unresolved promises on teardown to
  * prevent memory leaks and dangling microtasks.
  *
  * @module tab-count.strategy

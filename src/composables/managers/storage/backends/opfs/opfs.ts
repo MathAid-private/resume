@@ -55,7 +55,7 @@ import { OPFSTransaction } from './transaction'
  * Its role in the wider storage subsystem is:
  * - **Preferred persistent backend** when available (priority = 0).
  * - Operated exclusively by the SharedWorker scheduler, which serializes all
- *   ops through a single thread — eliminating concurrent write races without
+ *   ops through a single thread - eliminating concurrent write races without
  *   any additional locking.
  * - Falls back gracefully to the main thread (async IO path) when the
  *   SharedWorker is unavailable.
@@ -169,7 +169,7 @@ import { OPFSTransaction } from './transaction'
  *   |
  *   +-- readManifest() into _manifest  (may be stale; WAL has the truth)
  *   |
- *   +-- _applyWALOps(wal.ops)          (idempotent — safe to re-apply)
+ *   +-- _applyWALOps(wal.ops)          (idempotent - safe to re-apply)
  *   |
  *   +-- writeManifest(_manifest)       (persist corrected state)
  *   |
@@ -203,7 +203,7 @@ import { OPFSTransaction } from './transaction'
  * (up to `lockTimeoutMs`).
  *
  * ### No read-your-own-writes in transactions
- * `read()` ignores `transactionId` — it always reads from committed state.
+ * `read()` ignores `transactionId` - it always reads from committed state.
  * Uncommitted writes buffered in a transaction are invisible to subsequent
  * reads within that same transaction. This is a known gap; the pipeline layer
  * will maintain a per-transaction read buffer to bridge it.
@@ -245,7 +245,7 @@ export class OPFSBackend implements IStorageBackend<string> {
    */
   readonly transactionStrength: TransactionStrength = 'compensating'
   /**
-   * Highest priority (0) in the backend fallback chain — preferred over
+   * Highest priority (0) in the backend fallback chain - preferred over
    * LocalStorage, SessionStorage, and Memory when available.
    */
   readonly priority:            number              = 0
@@ -263,7 +263,7 @@ export class OPFSBackend implements IStorageBackend<string> {
    * It is the access frequency counter for **LFU (Least Frequently Used)** eviction.
    * Every successful `read()` call increments `_readCount[key]`. When `evict()` is
    * called with `policy: 'lfu'`, the tie-breaking comparator sorts by ascending read
-   * count — entries read fewest times are evicted first. It resets to zero on overwrite
+   * count - entries read fewest times are evicted first. It resets to zero on overwrite
    * (a rewritten entry is treated as new). It is in-memory only and resets on page
    * reload, which means LFU is a within-session heuristic. Both backends track it for
    * the same reason; Memory just happens to be the only backend where LFU is cheap and
@@ -337,7 +337,7 @@ export class OPFSBackend implements IStorageBackend<string> {
    * Boot sequence:
    * 1. `navigator.storage.getDirectory()` -> OPFS origin root
    * 2. `getDirectoryHandle(rootDirName, { create: true })` -> backend root dir
-   * 3. {@link _replayWALIfPresent} — reads WAL, replays ops if non-empty
+   * 3. {@link _replayWALIfPresent} - reads WAL, replays ops if non-empty
    * 4. {@link readManifest} -> populate `_manifest`
    * 5. Set `_initialized = true`
    *
@@ -367,7 +367,7 @@ export class OPFSBackend implements IStorageBackend<string> {
    * Roll back all pending transactions and release in-memory state.
    *
    * @remarks
-   * Does not delete any OPFS files — the stored data remains on disk.
+   * Does not delete any OPFS files - the stored data remains on disk.
    * A subsequent `initialize()` will restore the backend from the manifest.
    */
   async close(): Promise<void> {
@@ -430,11 +430,11 @@ export class OPFSBackend implements IStorageBackend<string> {
    *
    * @remarks
    * Returns `null` if the key is not in the manifest, or if the entry has
-   * expired (lazy TTL eviction — the expired entry is deleted as a side
+   * expired (lazy TTL eviction - the expired entry is deleted as a side
    * effect). Returns `null` if the data file is missing despite being in
    * the manifest (stale manifest entry is cleaned up).
    *
-   * The returned `payload` is the raw encrypted string — the pipeline is
+   * The returned `payload` is the raw encrypted string - the pipeline is
    * responsible for decryption, deserialization, and validation.
    *
    * Increments `_readCount[key]` on every successful read for LFU tracking.
@@ -488,7 +488,7 @@ export class OPFSBackend implements IStorageBackend<string> {
    * Delete a single entry from OPFS.
    *
    * @remarks
-   * Idempotent — resolves without error if the key is not in the manifest.
+   * Idempotent - resolves without error if the key is not in the manifest.
    * If `options.transactionId` is set, the op is buffered.
    */
   async delete(
@@ -612,7 +612,7 @@ export class OPFSBackend implements IStorageBackend<string> {
 
   /**
    * Return the count of entries matching the optional key prefix.
-   * Uses the in-memory manifest — no file I/O.
+   * Uses the in-memory manifest - no file I/O.
    */
   async count(prefix?: string): Promise<number> {
     this._assertInitialized()
@@ -685,16 +685,16 @@ export class OPFSBackend implements IStorageBackend<string> {
    * Evict entries to reclaim storage space.
    *
    * @remarks
-   * ### Phase 1 — Free TTL sweep
+   * ### Phase 1 - Free TTL sweep
    * All expired entries are deleted first. If this alone satisfies
    * `targetBytes`, no further eviction occurs.
    *
-   * ### Phase 2 — Weighted eviction
+   * ### Phase 2 - Weighted eviction
    * Remaining entries are sorted ascending by `weight` (lower weight =
    * evicted first). Ties are broken by `policy`:
-   * - `lru` / `fifo` — oldest `written_at` first.
-   * - `lfu` — lowest `_readCount` first (in-session only; resets on reload).
-   * - `user` — `comparator` function (receives stub envelopes with `payload: ''`).
+   * - `lru` / `fifo` - oldest `written_at` first.
+   * - `lfu` - lowest `_readCount` first (in-session only; resets on reload).
+   * - `user` - `comparator` function (receives stub envelopes with `payload: ''`).
    *
    * Returns the total number of bytes freed (approximated from manifest
    * `byteLength` values).
@@ -750,7 +750,7 @@ export class OPFSBackend implements IStorageBackend<string> {
 
   /**
    * Write payload bytes to the data file and update the in-memory manifest.
-   * Does NOT flush the manifest to disk — caller is responsible.
+   * Does NOT flush the manifest to disk - caller is responsible.
    */
   private async _applyWrite(
     key:        CanonicalKey,
@@ -763,14 +763,14 @@ export class OPFSBackend implements IStorageBackend<string> {
     const adapter      = await this._factory.open(fileHandle)
     await adapter.writeAll(payloadBytes)
     await adapter.close()
-    // Update manifest after IO succeeds — an IO failure leaves manifest consistent
+    // Update manifest after IO succeeds - an IO failure leaves manifest consistent
     this._manifest.set(key, { ...meta, byteLength: payloadBytes.byteLength })
     this._readCount.delete(key)  // Reset LFU counter on overwrite
   }
 
   /**
    * Delete the data file and remove the key from the in-memory manifest.
-   * Does NOT flush the manifest to disk — caller is responsible.
+   * Does NOT flush the manifest to disk - caller is responsible.
    */
   private async _applyDelete(key: CanonicalKey, filePath: string): Promise<void> {
     await deleteDataFile(this._rootDir!, filePath)
@@ -780,7 +780,7 @@ export class OPFSBackend implements IStorageBackend<string> {
 
   /**
    * Delete all entries matching an optional prefix.
-   * Does NOT flush the manifest to disk — caller is responsible.
+   * Does NOT flush the manifest to disk - caller is responsible.
    */
   private async _applyClear(prefix?: string): Promise<void> {
     const toDelete: Array<{ key: CanonicalKey; filePath: string }> = []
@@ -854,7 +854,7 @@ export class OPFSBackend implements IStorageBackend<string> {
    */
   private async _replayWALIfPresent(signal?: AbortSignal): Promise<void> {
     const wal = await readWAL(this._rootDir!, this._factory)
-    if (!wal || wal.ops.length === 0) return
+    if (!wal || (wal.ops?.length ?? 0) === 0) return
 
     signal?.throwIfAborted()
     console.warn(

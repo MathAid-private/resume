@@ -50,7 +50,7 @@ export function buildCanonicalKey(segments: ICanonicalKeySegments): CanonicalKey
  * Returns `null` if the string does not conform to the expected format.
  */
 export function parseCanonicalKey(key: string): ICanonicalKeySegments | null {
-  // Split on the first 4 occurrences of SEP only — actualKey may contain colons
+  // Split on the first 4 occurrences of SEP only - actualKey may contain colons
   const parts = key.split(SEP)
   if (parts.length < 5) return null
 

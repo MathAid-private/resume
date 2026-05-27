@@ -4,11 +4,11 @@
  * ## Overview
  * Pure helper functions for the OPFS backend. Grouped into four concerns:
  *
- * 1. **Manifest helpers** — read/write `_manifest.json`.
- * 2. **WAL helpers** — read/write/clear `_wal.json`.
- * 3. **Data file helpers** — derive file paths from canonical keys,
+ * 1. **Manifest helpers** - read/write `_manifest.json`.
+ * 2. **WAL helpers** - read/write/clear `_wal.json`.
+ * 3. **Data file helpers** - derive file paths from canonical keys,
  *    open/create data files, delete data files with directory pruning.
- * 4. **Base64 helpers** — encode/decode payload bytes for WAL JSON serialization.
+ * 4. **Base64 helpers** - encode/decode payload bytes for WAL JSON serialization.
  *
  * ## Why helpers are separated from the backend class
  * {@link OPFSBackend} already carries the complexity of lifecycle management,
@@ -17,7 +17,7 @@
  * and free of `this` binding issues.
  *
  * Every function in this module is stateless and pure with respect to the
- * in-memory manifest — callers (i.e., OPFSBackend) are responsible for
+ * in-memory manifest - callers (i.e., OPFSBackend) are responsible for
  * updating the manifest after calling helpers.
  */
 import type { CanonicalKey } from '../../storage.types'
@@ -43,7 +43,7 @@ export const MANIFEST_FILENAME = '_manifest.json'
  * @remarks
  * Returns an empty `Map` when the file does not exist yet, is empty, or
  * contains malformed JSON. The backend treats an empty manifest as a fresh
- * store — the WAL replay step in {@link OPFSBackend.initialize} runs before
+ * store - the WAL replay step in {@link OPFSBackend.initialize} runs before
  * this function is called in the main boot sequence, so a corrupt manifest
  * after a crash is recovered via WAL replay before this reads it.
  *
@@ -66,7 +66,7 @@ export async function readManifest(
     const wire = JSON.parse(decodeBytes(bytes)) as ManifestWire
     return new Map(wire)
   } catch {
-    // Corrupt or unreadable manifest — start fresh; WAL replay handles recovery
+    // Corrupt or unreadable manifest - start fresh; WAL replay handles recovery
     return new Map()
   } finally {
     await adapter?.close()
@@ -79,7 +79,7 @@ export async function readManifest(
  * @remarks
  * Called after every successful mutation (non-transactional) and after
  * every successful transaction commit. The manifest file is fully replaced
- * on each write — no partial updates.
+ * on each write - no partial updates.
  *
  * `Map` is serialized as a `ManifestWire` array because `JSON.stringify(map)`
  * produces `{}`.
@@ -117,7 +117,7 @@ export const WAL_FILENAME = '_wal.json'
  *
  * @remarks
  * Returns `null` when the WAL file does not exist, is empty, or is
- * malformed. A `null` return means "no pending ops to replay" — the backend
+ * malformed. A `null` return means "no pending ops to replay" - the backend
  * treats this as a clean state.
  *
  * A non-null return during {@link OPFSBackend.initialize} indicates the
@@ -180,7 +180,7 @@ export async function writeWAL(
  * @remarks
  * Called as the **last** step of a successful transaction commit, after the
  * manifest has been fully rewritten. A truncated WAL means "nothing to
- * replay" — the store is in a consistent state.
+ * replay" - the store is in a consistent state.
  *
  * @param dir     - The OPFS root directory handle.
  * @param factory - IO adapter factory.
@@ -238,7 +238,7 @@ export function keyToFilePath(key: CanonicalKey): string {
     throw new Error(`[OPFS] Cannot derive file path from malformed canonical key: "${key}"`)
   }
   const [domain, platform, version, module, ...rest] = parts
-  // actualKey may contain colons — percent-encode them for filesystem safety
+  // actualKey may contain colons - percent-encode them for filesystem safety
   const encodedActual = rest.join(':').replace(/:/g, '%3A')
   return [domain, platform, version, module, encodedActual].join('/')
 }
@@ -280,12 +280,12 @@ export async function openDataFile(
  *
  * @remarks
  * Silently ignores missing files (`DOMException: NotFoundError`) to make
- * delete operations idempotent — safe to call during WAL replay.
+ * delete operations idempotent - safe to call during WAL replay.
  *
  * ### Directory pruning
  * After removing the file, walks back up the directory hierarchy and removes
  * any directory that is now empty. This prevents accumulating ghost
- * directories after many deletes. The pruning is best-effort — if any step
+ * directories after many deletes. The pruning is best-effort - if any step
  * fails (e.g., the directory is non-empty or a race removes it first), the
  * walk stops silently.
  *
@@ -315,7 +315,7 @@ export async function deleteDataFile(
       const childName = parts[i - 1]
       try {
         const child = await parent.getDirectoryHandle(childName)
-        // Peek at the first entry — if there is one, directory is non-empty
+        // Peek at the first entry - if there is one, directory is non-empty
         for await (const _ of child.keys()) {
           return  // Non-empty; stop pruning
         }
@@ -325,7 +325,7 @@ export async function deleteDataFile(
       }
     }
   } catch {
-    // File didn't exist or couldn't be deleted — idempotent, ignore
+    // File didn't exist or couldn't be deleted - idempotent, ignore
   }
 }
 

@@ -13,8 +13,8 @@ The Origin Private File System (OPFS) storage backend. Preferred persistent back
 | `opfs.types.ts` | All OPFS-specific types: manifest, WAL ops, IO adapter interfaces, config, transaction interface |
 | `opfs.io.ts` | `SyncFileIOAdapter` (Worker) and `AsyncFileIOAdapter` (main thread) + factory detection |
 | `opfs.utils.ts` | Pure helpers: manifest R/W, WAL R/W/clear, file path derivation, directory pruning, base64 encoding |
-| `opfs.ts` | `OPFSBackend` class — implements `IStorageBackend<string>` |
-| `transaction.ts` | `OPFSTransaction` — WAL-backed compensating transaction |
+| `opfs.ts` | `OPFSBackend` class - implements `IStorageBackend<string>` |
+| `transaction.ts` | `OPFSTransaction` - WAL-backed compensating transaction |
 | `index.ts` | Barrel export |
 
 ---
@@ -25,10 +25,10 @@ The Origin Private File System (OPFS) storage backend. Preferred persistent back
 CALLER
   │  storage.set / storage.get / storage.transaction
   ▼
-FACADE  [pipeline layer — not in this module]
+FACADE  [pipeline layer - not in this module]
   │  resolves canonical key, validates, serializes, encrypts
   ▼
-PIPELINE  [pipeline layer — not in this module]
+PIPELINE  [pipeline layer - not in this module]
   │  wraps encrypted string in StorageEnvelope<string>, calls backend
   ▼
 OPFSBackend  (this module)
@@ -98,9 +98,9 @@ Canonical key `"myapp:chrome:130:auth:user-session"` maps to the file path `myap
 
 ## The manifest
 
-The manifest is a `Map<CanonicalKey, ManifestEntry>` loaded entirely into memory at `initialize()`. It holds envelope metadata for every stored entry — everything except the payload itself.
+The manifest is a `Map<CanonicalKey, ManifestEntry>` loaded entirely into memory at `initialize()`. It holds envelope metadata for every stored entry - everything except the payload itself.
 
-This separation is the most important performance decision in the backend. Operations that do not need payload content — `count()`, prefix-filtered `query()` metadata scans, TTL sweeps, quota estimates, and the first phase of eviction — run entirely against the in-memory Map with zero file I/O. Data files are only opened when a payload is explicitly needed.
+This separation is the most important performance decision in the backend. Operations that do not need payload content - `count()`, prefix-filtered `query()` metadata scans, TTL sweeps, quota estimates, and the first phase of eviction - run entirely against the in-memory Map with zero file I/O. Data files are only opened when a payload is explicitly needed.
 
 The manifest is serialized as a `ManifestWire` (an array of `[key, entry]` tuples, since `JSON.stringify(Map)` produces `{}`) and written as `_manifest.json` in the backend root directory after every successful mutation.
 
@@ -132,7 +132,7 @@ Before the manifest is loaded, `_replayWALIfPresent` checks for a non-empty `_wa
 readWAL() -> non-null?
 readWAL() -> non-null?
   ├── readManifest() into _manifest   (may be stale; WAL has the truth)
-  ├── _applyWALOps(wal.ops)           (idempotent — safe to re-apply)
+  ├── _applyWALOps(wal.ops)           (idempotent - safe to re-apply)
   ├── writeManifest(_manifest.json)   (persist corrected state)
   └── clearWAL(_wal.json)             (signal recovery complete)
   then initialize() reads the now-correct manifest normally
@@ -165,7 +165,7 @@ A `FileSystemSyncAccessHandle` holds an exclusive lock on the file for its entir
 
 ## Transaction strength: compensating
 
-OPFS provides no native multi-file transaction primitive. The WAL gives crash recovery but not isolation — a concurrent reader (e.g., another tab reading from the same OPFS origin) can observe an intermediate state while ops are being applied between steps 2 and 3 of the commit sequence. This is the definition of "compensating" strength.
+OPFS provides no native multi-file transaction primitive. The WAL gives crash recovery but not isolation - a concurrent reader (e.g., another tab reading from the same OPFS origin) can observe an intermediate state while ops are being applied between steps 2 and 3 of the commit sequence. This is the definition of "compensating" strength.
 
 `beginTransaction()` throws immediately if `'serializable'` is requested. Use IndexedDB for serializable guarantees.
 
@@ -175,8 +175,8 @@ OPFS provides no native multi-file transaction primitive. The WAL gives crash re
 
 ### `TRaw = string`
 
-`OPFSBackend` is typed `IStorageBackend<string>`. By the time `write(key, envelope)` is called, `envelope.payload` is already an encrypted, serialized string — the pipeline has already run `validate -> serialize -> encrypt`. The backend stores those bytes verbatim and returns them as-is on read. It never knows what the string contains.
-`OPFSBackend` is typed `IStorageBackend<string>`. By the time `write(key, envelope)` is called, `envelope.payload` is already an encrypted, serialized string — the pipeline has already run `validate -> serialize -> encrypt`. The backend stores those bytes verbatim and returns them as-is on read. It never knows what the string contains.
+`OPFSBackend` is typed `IStorageBackend<string>`. By the time `write(key, envelope)` is called, `envelope.payload` is already an encrypted, serialized string - the pipeline has already run `validate -> serialize -> encrypt`. The backend stores those bytes verbatim and returns them as-is on read. It never knows what the string contains.
+`OPFSBackend` is typed `IStorageBackend<string>`. By the time `write(key, envelope)` is called, `envelope.payload` is already an encrypted, serialized string - the pipeline has already run `validate -> serialize -> encrypt`. The backend stores those bytes verbatim and returns them as-is on read. It never knows what the string contains.
 
 ### Why payload is not in the manifest
 
@@ -188,11 +188,11 @@ Files are stored under a four-level directory hierarchy (`domain/platform/versio
 
 ### Read-your-own-writes is not implemented
 
-`read()` ignores `transactionId` — it always reads from committed state. If you write key `A` inside a transaction and then read key `A` within the same transaction before committing, you will not see your uncommitted value. This is a known gap. The fix belongs in the pipeline layer, which will maintain a per-transaction in-memory read buffer and check it before falling through to the backend.
+`read()` ignores `transactionId` - it always reads from committed state. If you write key `A` inside a transaction and then read key `A` within the same transaction before committing, you will not see your uncommitted value. This is a known gap. The fix belongs in the pipeline layer, which will maintain a per-transaction in-memory read buffer and check it before falling through to the backend.
 
 ### User eviction comparator receives stub envelopes
 
-When `policy === 'user'`, the custom comparator receives `StorageEnvelope<string>` objects whose `payload` field is an empty string `''`. Loading all payloads just to sort them for eviction would require opening every data file — prohibitively expensive. If your comparator needs payload content, maintain an external index or choose a different policy.
+When `policy === 'user'`, the custom comparator receives `StorageEnvelope<string>` objects whose `payload` field is an empty string `''`. Loading all payloads just to sort them for eviction would require opening every data file - prohibitively expensive. If your comparator needs payload content, maintain an external index or choose a different policy.
 
 ### `_readCount` and LFU eviction
 
@@ -237,7 +237,7 @@ close()
 ```ts
 import { OPFSBackend } from './opfs'
 
-// Inside a SharedWorker — sync IO auto-detected
+// Inside a SharedWorker - sync IO auto-detected
 const backend = new OPFSBackend({ rootDirName: 'app-storage' })
 
 const probe = await backend.probe()
@@ -280,8 +280,8 @@ await backend.close()
 
 ## What this module does NOT do
 
-- **Decrypt or deserialize** — payloads arrive already encrypted and leave still encrypted. The pipeline handles both directions.
-- **Validate with Zod** — validation is a pipeline concern.
-- **Emit BroadcastChannel change events** — that is a pipeline/facade concern.
-- **Select the backend** — the strategy registry in the SharedWorker scheduler makes that decision based on `probe()` results and priority.
-- **Orchestrate caching with Memory** — the pipeline layer holds references to both backends and decides when to read-through or write-through to Memory.
+- **Decrypt or deserialize** - payloads arrive already encrypted and leave still encrypted. The pipeline handles both directions.
+- **Validate with Zod** - validation is a pipeline concern.
+- **Emit BroadcastChannel change events** - that is a pipeline/facade concern.
+- **Select the backend** - the strategy registry in the SharedWorker scheduler makes that decision based on `probe()` results and priority.
+- **Orchestrate caching with Memory** - the pipeline layer holds references to both backends and decides when to read-through or write-through to Memory.

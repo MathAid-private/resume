@@ -2,7 +2,7 @@
 
 **Location:** `src/composables/managers/storage/backends/memory`
 
-The in-process, Map-backed storage backend. Operates entirely in the JavaScript heap — no disk, no encoding, no encryption. Serves two distinct roles in the storage subsystem: last-resort fallback when every disk-backed backend is unavailable, and write-through/read-through cache layer above disk-backed backends (the caching orchestration lives in the pipeline layer, not here).
+The in-process, Map-backed storage backend. Operates entirely in the JavaScript heap - no disk, no encoding, no encryption. Serves two distinct roles in the storage subsystem: last-resort fallback when every disk-backed backend is unavailable, and write-through/read-through cache layer above disk-backed backends (the caching orchestration lives in the pipeline layer, not here).
 
 ---
 
@@ -10,9 +10,9 @@ The in-process, Map-backed storage backend. Operates entirely in the JavaScript 
 
 | File | Purpose |
 |---|---|
-| `memory.ts` | `MemoryBackend` class — implements `IStorageBackend<unknown>` |
+| `memory.ts` | `MemoryBackend` class - implements `IStorageBackend<unknown>` |
 | `memory.store.ts` | Pinia store holding all runtime state (Map, transactions, read counts) |
-| `transaction.ts` | `MemoryTransaction<TRaw>` — best-effort, buffer-then-apply transaction |
+| `transaction.ts` | `MemoryTransaction<TRaw>` - best-effort, buffer-then-apply transaction |
 | `index.ts` | Barrel export + architecture diagram |
 
 ---
@@ -23,10 +23,10 @@ The in-process, Map-backed storage backend. Operates entirely in the JavaScript 
 CALLER
   │  storage.set / storage.get / storage.transaction
   ▼
-FACADE  [pipeline layer — not in this module]
+FACADE  [pipeline layer - not in this module]
   │  resolves canonical key, validates, serializes, encrypts
   ▼
-PIPELINE  [pipeline layer — not in this module]
+PIPELINE  [pipeline layer - not in this module]
   │  wraps value in StorageEnvelope, calls backend
   ▼
 MemoryBackend  (this module)
@@ -59,29 +59,29 @@ MemoryBackend  (this module)
 
 ### `TRaw = unknown`
 
-The Memory backend stores values as-is — `StorageEnvelope<unknown>`. Unlike disk-backed backends, it skips serialization and encryption entirely. The pipeline detects this and omits those steps for memory writes, passing the already-validated, already-typed value directly as the envelope payload.
+The Memory backend stores values as-is - `StorageEnvelope<unknown>`. Unlike disk-backed backends, it skips serialization and encryption entirely. The pipeline detects this and omits those steps for memory writes, passing the already-validated, already-typed value directly as the envelope payload.
 
 ### State lives in Pinia, not in the class
 
-`MemoryBackend` holds no instance state. Everything — the Map, the transaction registry, the read counters — lives in `useMemoryStore()` (a Pinia store). This means the backend is effectively a singleton driven by reactive store state, which makes it inspectable in Vue DevTools and accessible from multiple call sites without shared-instance management.
+`MemoryBackend` holds no instance state. Everything - the Map, the transaction registry, the read counters - lives in `useMemoryStore()` (a Pinia store). This means the backend is effectively a singleton driven by reactive store state, which makes it inspectable in Vue DevTools and accessible from multiple call sites without shared-instance management.
 
 ### Best-effort transactions
 
 "Best-effort" is the honest label for what `MemoryTransaction` provides:
 
-- **Atomicity** — real, because JavaScript is single-threaded. `_applyOps` runs synchronously inside a single event-loop turn with no way for anything to interleave.
-- **Durability** — none. Data lives only for the current page session. A refresh wipes everything.
-- **Rollback cost** — zero. Nothing is written until `commit()`, so discarding the ops buffer is the entirety of rollback.
+- **Atomicity** - real, because JavaScript is single-threaded. `_applyOps` runs synchronously inside a single event-loop turn with no way for anything to interleave.
+- **Durability** - none. Data lives only for the current page session. A refresh wipes everything.
+- **Rollback cost** - zero. Nothing is written until `commit()`, so discarding the ops buffer is the entirety of rollback.
 
 If the caller requests `'serializable'` or `'compensating'` strength, `beginTransaction()` throws immediately with an informative message directing them to IndexedDB.
 
 ### `_readCount` and LFU eviction
 
-Every successful `read()` increments a counter for that key. When `evict()` runs with `policy: 'lfu'`, these counts are the tie-breaker — entries read fewest times in the current session are evicted first. The counter resets to zero on overwrite (a rewritten entry is treated as new) and on page reload (counts are in-memory only). Outside of LFU tie-breaking, `_readCount` has no effect on any other operation.
+Every successful `read()` increments a counter for that key. When `evict()` runs with `policy: 'lfu'`, these counts are the tie-breaker - entries read fewest times in the current session are evicted first. The counter resets to zero on overwrite (a rewritten entry is treated as new) and on page reload (counts are in-memory only). Outside of LFU tie-breaking, `_readCount` has no effect on any other operation.
 
 ### `_store` parameter on `MemoryTransaction` is unused
 
-`MemoryTransaction` accepts `_store` in its constructor — a remnant of an earlier design where the transaction would support read-your-own-writes by peeking at the backing store. That feature was never implemented, so `_store` sits unused. The correct place for read-your-own-writes is the pipeline layer, which will maintain a per-transaction read buffer. The `_store` parameter should be removed in a future cleanup.
+`MemoryTransaction` accepts `_store` in its constructor - a remnant of an earlier design where the transaction would support read-your-own-writes by peeking at the backing store. That feature was never implemented, so `_store` sits unused. The correct place for read-your-own-writes is the pipeline layer, which will maintain a per-transaction read buffer. The `_store` parameter should be removed in a future cleanup.
 
 ### The transaction leak bug (now fixed)
 
@@ -100,7 +100,7 @@ initialize()    -> sets _initialized = true; no async work needed
 close()         -> rolls back all pending transactions, clears _store + _readCount
 ```
 
-`probe()` is trivially cheap and always succeeds — there is no environment in which an in-process Map is unavailable.
+`probe()` is trivially cheap and always succeeds - there is no environment in which an in-process Map is unavailable.
 
 ---
 
@@ -108,9 +108,9 @@ close()         -> rolls back all pending transactions, clears _store + _readCou
 
 Eviction runs in two phases:
 
-**Phase 1 — Free TTL sweep.** All entries whose `expires_at < Date.now()` are deleted. If the bytes freed in this phase satisfy `targetBytes`, eviction stops here.
+**Phase 1 - Free TTL sweep.** All entries whose `expires_at < Date.now()` are deleted. If the bytes freed in this phase satisfy `targetBytes`, eviction stops here.
 
-**Phase 2 — Weighted eviction.** Remaining entries are sorted ascending by `weight` (lower = evicted first). Ties are broken by the chosen policy:
+**Phase 2 - Weighted eviction.** Remaining entries are sorted ascending by `weight` (lower = evicted first). Ties are broken by the chosen policy:
 
 | Policy | Tie-break logic |
 |---|---|
@@ -157,7 +157,7 @@ await tx.rollback() // both discarded
 
 ## What this module does NOT do
 
-- **Encrypt or serialize** — the pipeline handles this before values reach the backend.
-- **Persist across reloads** — intentional. Data loss on refresh is the defined contract for this backend.
-- **Orchestrate caching** — when Memory acts as a cache above OPFS or IDB, the pipeline layer makes that decision and calls both backends in the right order. This backend knows nothing about the existence of other backends.
-- **Emit change events** — BroadcastChannel `StorageChangeEvent` emission is a pipeline/facade concern, not a backend concern.
+- **Encrypt or serialize** - the pipeline handles this before values reach the backend.
+- **Persist across reloads** - intentional. Data loss on refresh is the defined contract for this backend.
+- **Orchestrate caching** - when Memory acts as a cache above OPFS or IDB, the pipeline layer makes that decision and calls both backends in the right order. This backend knows nothing about the existence of other backends.
+- **Emit change events** - BroadcastChannel `StorageChangeEvent` emission is a pipeline/facade concern, not a backend concern.

@@ -42,7 +42,7 @@ export const INTL_UNIT_MAP: Partial<Record<keyof DurationRecord, keyof DurationR
 } as const;
 
 // ---------------------------------------------------------------------------
-// ISO 8601 / RFC 9557 structural parsing (regex — format, not measurement)
+// ISO 8601 / RFC 9557 structural parsing (regex - format, not measurement)
 // ---------------------------------------------------------------------------
 
 /**

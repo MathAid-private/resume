@@ -35,7 +35,7 @@ export type NilEntries<T extends object> = NullishPart<T>;
  * @summary Creates a type with only the nullable properties (key + value pair preserved).
  *
  * Maps an object type `T` to a new type containing **only** the properties where `null` is assignable to the value type
- * (i.e. the property can be `null` — either `null` itself or part of a union that includes `null`).
+ * (i.e. the property can be `null` - either `null` itself or part of a union that includes `null`).
  * Returns `never` if `T` is not an object type.
  *
  * This extract a subset of an object type containing only fields that are allowed to be `null`, keeping both keys and their original value types.
@@ -56,7 +56,7 @@ export type NilEntries<T extends object> = NullishPart<T>;
  *   id: number;
  *   name: string | null;
  *   email: null;
- *   age?: number;           // number | undefined — not nullable
+ *   age?: number;           // number | undefined - not nullable
  *   avatarUrl: string | null | undefined;
  * }
  *

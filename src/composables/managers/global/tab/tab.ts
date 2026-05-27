@@ -22,7 +22,7 @@ export function useTab() {
     const operative = { getOrCreateTabId, store: store! }
 
     // bootstrap() sets up event listeners and the strategy's internal state.
-    // It does NOT call show() itself — we call show() once here explicitly
+    // It does NOT call show() itself - we call show() once here explicitly
     // so there is exactly one registration per bootstrap.
     const cleanup = tabCount?.bootstrap(operative)
     await show()

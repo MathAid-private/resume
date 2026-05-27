@@ -53,7 +53,7 @@ export { MemoryBackend } from './backends/memory/memory'
 export { MemoryTransaction } from './backends/memory/transaction'
 export { MigrationRunner } from './migration/runner'
 
-// Implementations — OPFS
+// Implementations - OPFS
 export type {
   IFileIOAdapter,
   IIOAdapterFactory,

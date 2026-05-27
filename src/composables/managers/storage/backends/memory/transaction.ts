@@ -20,7 +20,7 @@ export interface BufferedOp<TRaw> {
  * strength: best-effort
  *
  * Ops are buffered and applied to the store map atomically in JS (single
- * thread). "Rollback" means discarding the buffer — no actual undo needed
+ * thread). "Rollback" means discarding the buffer - no actual undo needed
  * because nothing was written yet.
  */
 
@@ -66,7 +66,7 @@ export class MemoryTransaction<TRaw> implements ITransaction {
   async rollback(): Promise<void> {
     this._assertOpen()
     this._settled = true
-    // Discard the buffer — nothing was written, so no undo needed.
+    // Discard the buffer - nothing was written, so no undo needed.
     this._ops.length = 0
   }
 

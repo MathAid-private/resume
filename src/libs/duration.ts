@@ -522,7 +522,7 @@ export class Duration implements DurationDefinition {
   }
 
   /**
-   * Parses an ISO 8601 duration string (RFC 9557 superset — weeks allowed).
+   * Parses an ISO 8601 duration string (RFC 9557 superset - weeks allowed).
    * Delegates structural parsing to parseISOString(); Intl.DurationFormat does
    * not expose a parse API, so the regex remains the correct tool here.
    */
@@ -586,7 +586,7 @@ export class Duration implements DurationDefinition {
 
   /**
    * Extracts a single component from an RFC 3339 duration string.
-   * Uses parseISOString() internally — no duplicate regex.
+   * Uses parseISOString() internally - no duplicate regex.
    */
   static parseComponentFromRFC3339(
     input: string,

@@ -8,15 +8,15 @@ import type { BackoffParams } from "@/types/backoff.type";
  *
  * @example
  * ```ts
- * // Minimal config — all BackoffParams fields come from RETRY_CONFIG_DEFAULTS.
+ * // Minimal config - all BackoffParams fields come from RETRY_CONFIG_DEFAULTS.
  * await initExecuteWithRetries({ executor: myFn, args: [] });
  *
- * // Partial override — only maxRetries differs from the defaults.
+ * // Partial override - only maxRetries differs from the defaults.
  * await initExecuteWithRetries({ executor: myFn, args: [], maxRetries: 10 });
  * ```
  */
 export const RETRY_CONFIG_DEFAULTS = {
-  /** 2 minutes 30 seconds — a generous ceiling suitable for most background operations. */
+  /** 2 minutes 30 seconds - a generous ceiling suitable for most background operations. */
   maxCapMs: 2.5 * 60 * 1000,
   accumulatedTimeout: 0,
   attempts: 0,

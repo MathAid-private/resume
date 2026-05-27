@@ -11,11 +11,11 @@ export interface IMigrationRunner {
    * every registered `MigrationStep` in order.
    *
    * Returns the migrated data (un-validated; the pipeline validates after).
-   * Throws if any step fails — caller is responsible for rollback.
+   * Throws if any step fails - caller is responsible for rollback.
    *
-   * @param data          — Raw data at `storedVersion`.
-   * @param storedVersion — The `schema_version` stamped on the stored entry.
-   * @param schema        — The target schema (provides `migrations` and `version`).
+   * @param data          - Raw data at `storedVersion`.
+   * @param storedVersion - The `schema_version` stamped on the stored entry.
+   * @param schema        - The target schema (provides `migrations` and `version`).
    */
   migrate<TSchema extends ZodType>(
     data: unknown,
