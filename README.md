@@ -7,7 +7,7 @@ A repo for a resume
 
 Each file opens with a module-level docblock that answers: *what is this file's single responsibility, how does it relate to its siblings, and what would surprise a reader?* The dependency graph in `opfs.types.ts` makes it immediately clear it's a leaf with no internal imports. The `opfs.io.ts` fileoverview calls out the `SharedArrayBuffer` quirk upfront because it's the kind of thing that causes mysterious failures under `crossOriginIsolated` environments.
 
-### Types: overview → remarks → example → references
+### Types: overview -> remarks -> example -> references
 
 Every exported type and interface follows that progression. The overview line is the one-liner. Remarks explain the *why* — why `ManifestEntry` excludes payload, why `ManifestWire` is an array instead of using `JSON.stringify(Map)`, why WAL ops don't include reads. The example shows a concrete value where one aids understanding. `@see` links go to MDN for browser APIs and to sibling interfaces for cross-references.
 

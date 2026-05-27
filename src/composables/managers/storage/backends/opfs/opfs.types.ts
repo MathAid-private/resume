@@ -93,7 +93,7 @@ export interface ManifestEntry {
    * Relative path within the OPFS root directory where the payload file lives.
    *
    * Derived from the canonical key via {@link keyToFilePath}:
-   * `"myapp:chrome:130:auth:user-session"` → `"myapp/chrome/130/auth/user-session"`
+   * `"myapp:chrome:130:auth:user-session"` -> `"myapp/chrome/130/auth/user-session"`
    */
   filePath: string
   /** Byte length of the stored payload. Used for quota estimation without opening the file. */
@@ -233,7 +233,7 @@ export interface WALClearOp {
  *
  * `OPFSBackend` is typed `IStorageBackend<string>` - the `string` is the
  * **already-encrypted, already-serialized payload**. The pipeline will have already
- * run: `zod.parse → user serializer → encrypt → wrap in envelope`. By the time
+ * run: `zod.parse -> user serializer -> encrypt -> wrap in envelope`. By the time
  * `write(key, envelope)` reaches the backend, `envelope.payload` is an opaque
  * encrypted string. The backend encodes it to UTF-8 bytes (`encodeString(envelope.payload)`),
  * writes those bytes to the data file, and on read decodes them back to a string and
@@ -253,13 +253,13 @@ export type WALOp = WALWriteOp | WALDeleteOp | WALClearOp
  *
  * **Crash recovery guarantee:**
  * ```
- * State at crash         │ Recovery action
- * ───────────────────────┼─────────────────────────────────────────────────
- * Before WAL written     │ Nothing applied → no recovery needed
- * WAL written, no ops    │ Replay WAL → reach intended final state
- * Ops partial, no manifest│ Replay WAL (ops are idempotent) → consistent
- * Manifest written       │ Replay WAL → manifest already up-to-date → consistent
- * WAL cleared            │ Nothing to recover
+ * State at crash          | Recovery action
+ * ------------------------|--------------------------------------------------------
+ * Before WAL written      | Nothing applied -> no recovery needed
+ * WAL written, no ops     | Replay WAL -> reach intended final state
+ * Ops partial, no manifest│ Replay WAL (ops are idempotent) -> consistent
+ * Manifest written        | Replay WAL -> manifest already up-to-date -> consistent
+ * WAL cleared             | Nothing to recover
  * ```
  */
 export interface WALFile {

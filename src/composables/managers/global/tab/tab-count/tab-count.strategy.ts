@@ -345,8 +345,8 @@ export function useBroadcastStrategy() {
 //   • LS_RES_KEY     leader writes the response here; followers read it.
 //
 //   The `storage` event fires in every tab EXCEPT the writer, which is exactly
-//   what we need: the leader writes LS_RES_KEY → followers update their count.
-//   Followers write LS_REQ_KEY → leader processes it.
+//   what we need: the leader writes LS_RES_KEY -> followers update their count.
+//   Followers write LS_REQ_KEY -> leader processes it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LS_LEADER_KEY = TAB_COUNTER_STORAGE_KEY + ':leader'

@@ -68,7 +68,7 @@ export enum BackoffStrategy {
    *   a **thundering herd** — consider `EXPONENTIAL_WITH_JITTER` instead.
    *
    * @example
-   * // base=100ms, attempt=3 → 100 * 2^3 = 800ms
+   * // base=100ms, attempt=3 -> 100 * 2^3 = 800ms
    * const wait = exponentialBackoff({ timeout: 100, failedAttempts: 3, ... });
    */
   EXPONENTIAL,
@@ -107,7 +107,7 @@ export enum BackoffStrategy {
    * - High multipliers (> 3) can reach extreme wait times after very few attempts.
    *
    * @example
-   * // base=100ms, multiplier=3, attempt=2 → 100 * 3^2 = 900ms
+   * // base=100ms, multiplier=3, attempt=2 -> 100 * 3^2 = 900ms
    * const wait = multiplicativeExponentialBackoff({ timeout: 100, retryMultiplier: 3, failedAttempts: 2, ... });
    */
   MULTIPLICATIVE_EXPONENTIAL,
@@ -149,7 +149,7 @@ export enum BackoffStrategy {
    * - Not suitable as the sole strategy in high-concurrency scenarios without jitter.
    *
    * @example
-   * // base=100ms, multiplier=500ms, attempt=3 → 100 + (3 * 500) = 1,600ms
+   * // base=100ms, multiplier=500ms, attempt=3 -> 100 + (3 * 500) = 1,600ms
    * const wait = linearBackoff({ timeout: 100, retryMultiplier: 500, failedAttempts: 3, ... });
    */
   LINEAR,
@@ -192,7 +192,7 @@ export enum BackoffStrategy {
    * that avoids correlation with the previous wait.
    *
    * @example
-   * // base=100ms, attempt=3 → random value in [0, 800ms]
+   * // base=100ms, attempt=3 -> random value in [0, 800ms]
    * const wait = exponentialBackoffWithJitter({ timeout: 100, failedAttempts: 3, ... });
    */
   EXPONENTIAL_WITH_JITTER,
@@ -233,7 +233,7 @@ export enum BackoffStrategy {
    * @see {@link https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/}
    *
    * @example
-   * // base=100ms, prevWait=200ms, cap=30000ms → random value in [100, 600ms]
+   * // base=100ms, prevWait=200ms, cap=30000ms -> random value in [100, 600ms]
    * const wait = decorrelatedJitterBackoff({ timeout: 100, accumulatedTimeoutMs: 200, ... });
    */
   DECORRELATED_JITTER,

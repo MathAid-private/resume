@@ -53,10 +53,10 @@ function toIntlRecord(record: DurationRecord) {
  * @param record  - The duration fields to format.
  * @param locale  - BCP 47 locale tag (default: runtime locale).
  * @param style   - Intl.DurationFormat style: "long" | "short" | "narrow" | "digital"
- *                  "long"    → "2 hours, 30 minutes"
- *                  "short"   → "2 hr., 30 min."
- *                  "narrow"  → "2h 30m"   (closest to the old `concise` flag)
- *                  "digital" → "2:30:00"
+ *                  "long"    -> "2 hours, 30 minutes"
+ *                  "short"   -> "2 hr., 30 min."
+ *                  "narrow"  -> "2h 30m"   (closest to the old `concise` flag)
+ *                  "digital" -> "2:30:00"
  */
 function formatWithIntl(
   record: DurationRecord,
@@ -295,8 +295,8 @@ export class Duration implements DurationDefinition {
    * Returns a locale-aware human-readable string via Intl.DurationFormat.
    *
    * @param options.locale  - BCP 47 locale (default: runtime locale).
-   * @param options.concise - true  → "narrow" style  ("2h 30m")
-   *                          false → "long"   style  ("2 hours, 30 minutes")
+   * @param options.concise - true  -> "narrow" style  ("2h 30m")
+   *                          false -> "long"   style  ("2 hours, 30 minutes")
    *
    * Replaces the old hand-rolled unit-label loop entirely. Decades, centuries,
    * and millennia are collapsed into years before handing off to Intl, since
@@ -546,7 +546,7 @@ export class Duration implements DurationDefinition {
 
   /**
    * Converts any DurationLike value to a Duration instance.
-   * String inputs are tried as RFC 9557 → RFC 3339 → Date constructor,
+   * String inputs are tried as RFC 9557 -> RFC 3339 -> Date constructor,
    * consistent with the original cascade but now sharing the single
    * parseISOString() implementation.
    */
