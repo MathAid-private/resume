@@ -29,8 +29,13 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    esbuildOptions: {
-      loader: {
+    // esbuildOptions: {
+    //   loader: {
+    //     '.js': 'jsx'
+    //   }
+    // },
+    rolldownOptions: {
+      moduleTypes: {
         '.js': 'jsx'
       }
     }
