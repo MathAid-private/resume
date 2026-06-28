@@ -28,6 +28,9 @@ export function useTab() {
     await show()
     return cleanup
   }
+  function getName() {
+    return window.name
+  }
   function show() {
     return tabCount?.show({
       getOrCreateTabId,
@@ -87,5 +90,6 @@ export function useTab() {
     stop,
     restart,
     preInitialize,
+    getName,
   }
 }
