@@ -6,7 +6,9 @@ export interface IFormFieldConfig {
    */
   parser: ZodType
   type?: 'error' | 'info' | 'warn' | 'success';
-  runIf: 'submit' | 'blur-focus' | 'input'
+  // runIf: 'submit' | 'blur' | 'focus' | 'input';
+  runtime: 'submit' | 'blur' | 'focus' | 'input';
+  // refinements: ZodType['superRefine'][]
 }
 export interface IFormField<V = string, F = V> {
   format?: F;
