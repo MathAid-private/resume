@@ -38,9 +38,10 @@ export function computeClamp({
   return Math.min(max, Math.max(min, value));
 }
 export function clientIsSameOriginWithWorker(origin: string) {
-    if(origin.length === 0) return true
-    return new URL(import.meta.env.VITE_BASE_URL).origin === new URL(origin).origin
-}/**
+  if (origin.length === 0) return true
+  return new URL(import.meta.env.VITE_BASE_URL).origin === new URL(origin).origin
+}
+/**
  * Generates a consistent 32-bit integer hash from a string.
  * @param {string} str - The input string to hash.
  * @returns {number} A numeric hash value.
@@ -58,4 +59,69 @@ export function stringToHash(str?: string | null): number {
   }
 
   return hash;
+}
+/**
+ * Estimates the memory footprint of a given value in bytes.
+ * Handles Blobs, Files, Buffers, Strings, Numbers, Booleans, Dates, Arrays, Objects, and Null/Undefined.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function sizeOf(value: any): number {
+  // 1. Primitive handling for null and undefined
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  // 2. Handle structural and specialized object types
+  if (typeof value === "object") {
+    // Handle specialized Node.js Buffer
+    // if (typeof Buffer !== "undefined" && Buffer.isBuffer(value)) {
+    //   return value.length;
+    // }
+    if (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView(value)) {
+      return value.byteLength;
+    }
+
+    // Handle browser Blob and File objects
+    if (typeof Blob !== "undefined" && value instanceof Blob) {
+      return value.size;
+    }
+
+    // Handle Date objects (stored as an 8-byte 64-bit integer timestamp)
+    if (value instanceof Date) {
+      return 8;
+    }
+
+    // Handle Arrays (calculates the sum of all elements)
+    if (Array.isArray(value)) {
+      return value.reduce((acc, item) => acc + sizeOf(item), 0);
+    }
+
+    // Handle standard Objects (keys + values)
+    let size = 0;
+    for (const key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        size += sizeOf(key);  // Key name takes up memory string space
+        size += sizeOf(value[key]); // Value memory size
+      }
+    }
+    return size;
+  }
+
+  // 3. Handle primitives
+  switch (typeof value) {
+    case "string":
+      // Encoded in UTF-16 in JavaScript/TypeScript engines (2 bytes per character)
+      return value.length * 2;
+
+    case "number":
+      // IEEE 754 double-precision floats take 8 bytes
+      return 8;
+
+    case "boolean":
+      // Booleans are stored using 4 bytes (standard engine word size assignment)
+      return 4;
+
+    default:
+      return 0;
+  }
 }

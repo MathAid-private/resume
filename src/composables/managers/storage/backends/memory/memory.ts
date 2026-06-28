@@ -1,3 +1,4 @@
+import { sizeOf } from '@/libs'
 import type {
   CanonicalKey,
   CapabilityResult,
@@ -235,9 +236,15 @@ export class MemoryBackend implements IStorageBackend<unknown> {
 
   async clear(
     prefix?: string,
-    options?: { signal?: AbortSignal },
+    options?: { transactionId?: string; signal?: AbortSignal },
   ): Promise<void> {
     this._assertInitialized()
+
+    if(options?.transactionId) {
+      const tx = this._getTransaction(options.transactionId)
+      tx.bufferClear(prefix)
+      return
+    }
 
     if (!prefix) {
       this.store._store.clear()
@@ -312,9 +319,19 @@ export class MemoryBackend implements IStorageBackend<unknown> {
     const tx = new MemoryTransaction<unknown>(
       this.store._store,
       (txId: string, ops: BufferedOp<unknown>[]) => this._applyOps(txId, ops),
+      (txId: string) => this.store._transactions.delete(txId)
     )
     this.store._transactions.set(tx.id, tx)
     return tx
+  }
+
+  isTransactionActive(txId?: string) {
+    try {
+      const tx = txId ? this._getTransaction(txId) : this.store._transactions.values().next()?.value
+      return tx !== undefined && tx !== null
+    } catch {
+      return false
+    }
   }
 
   // ── Quota ─────────────────────────────────────────────────────────────────
@@ -362,7 +379,7 @@ export class MemoryBackend implements IStorageBackend<unknown> {
       if (this._isExpired(envelope)) {
         this.store._store.delete(key)
         this.store._readCount.delete(key)
-        freed++
+        freed += sizeOf(envelope)
       }
     }
 

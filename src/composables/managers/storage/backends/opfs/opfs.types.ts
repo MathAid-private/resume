@@ -25,6 +25,7 @@ import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   EvictionPolicy,
   ITransaction,
+  ITransactionOp,
   TransactionStrength
 } from '../../storage.types'
 
@@ -161,7 +162,7 @@ export type WALOpKind = 'write' | 'delete' | 'clear'
  * be serialized to JSON without binary escaping issues. Decoded back to
  * `Uint8Array` during {@link OPFSBackend._applyWALOps}.
  */
-export interface WALWriteOp {
+export interface WALWriteOp extends ITransactionOp {
   kind: 'write'
   key: CanonicalKey
   /** Relative path within the OPFS root. Stored here so replay does not need to re-derive it. */
@@ -180,7 +181,7 @@ export interface WALWriteOp {
  * even if the in-memory manifest has already been cleared (e.g., on crash
  * recovery before the manifest is loaded).
  */
-export interface WALDeleteOp {
+export interface WALDeleteOp extends ITransactionOp {
   kind: 'delete'
   key: CanonicalKey
   filePath: string
@@ -190,7 +191,7 @@ export interface WALDeleteOp {
  * A WAL op that records the intent to clear all entries matching an optional
  * key prefix, or the entire store if `prefix` is omitted.
  */
-export interface WALClearOp {
+export interface WALClearOp extends ITransactionOp {
   kind: 'clear'
   /** If present, only entries whose canonical key starts with this string are cleared. */
   prefix?: string
@@ -431,7 +432,7 @@ export interface IOPFSTransaction extends ITransaction {
   /** Always `'compensating'` - OPFS cannot provide serializable transactions. */
   readonly strength: Extract<TransactionStrength, 'compensating'>
   /** The accumulated op buffer. Exposed for inspection; do not mutate externally. */
-  readonly ops: WALOp[]
+  readonly operations: readonly WALOp[]
   /**
    * Buffer a write op. Called by {@link OPFSBackend.write} when a
    * `transactionId` is present in `WriteOptions`.

@@ -403,7 +403,7 @@ export class OPFSBackend implements IStorageBackend<string> {
     options?.signal?.throwIfAborted()
 
     const filePath   = keyToFilePath(key)
-    const payloadB64 = bytesToBase64(encodeString(envelope.payload))
+    const payloadBytes = encodeString(envelope.payload)
     const meta: ManifestEntry = {
       schema_version: envelope.schema_version,
       written_at:     envelope.written_at,
@@ -411,16 +411,17 @@ export class OPFSBackend implements IStorageBackend<string> {
       weight:         envelope.weight,
       backend:        envelope.backend,
       filePath,
-      byteLength:     encodeString(envelope.payload).byteLength,
+      byteLength:     payloadBytes.byteLength,
     }
 
     if (options?.transactionId) {
+      const payloadB64 = bytesToBase64(payloadBytes)
       const tx = this._getTransaction(options.transactionId)
       tx.bufferWrite(key, filePath, payloadB64, meta)
       return
     }
 
-    await this._applyWrite(key, filePath, payloadB64, meta)
+    await this._applyWriteBytes(key, filePath, payloadBytes, meta)
     await writeManifest(this._rootDir!, this._factory, this._manifest)
   }
 
@@ -654,6 +655,15 @@ export class OPFSBackend implements IStorageBackend<string> {
     return tx
   }
 
+  isTransactionActive(txId?: string) {
+    try {
+      const tx = txId ? this._getTransaction(txId) : this._transactions.values().next()?.value
+      return tx !== undefined && tx !== null
+    } catch {
+      return false
+    }
+  }
+
   // ── Quota ─────────────────────────────────────────────────────────────────
 
   /**
@@ -758,7 +768,15 @@ export class OPFSBackend implements IStorageBackend<string> {
     payloadB64: string,
     meta:       ManifestEntry,
   ): Promise<void> {
-    const payloadBytes = base64ToBytes(payloadB64)
+    await this._applyWriteBytes(key, filePath, base64ToBytes(payloadB64), meta)
+  }
+
+  private async _applyWriteBytes(
+    key:        CanonicalKey,
+    filePath:   string,
+    payloadBytes: Uint8Array,
+    meta:       ManifestEntry,
+  ) {
     const fileHandle   = await openDataFile(this._rootDir!, filePath, true)
     const adapter      = await this._factory.open(fileHandle)
     await adapter.writeAll(payloadBytes)

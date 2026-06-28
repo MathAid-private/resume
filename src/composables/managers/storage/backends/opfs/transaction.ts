@@ -55,7 +55,7 @@
 
 import { v4 as uuidV4 } from 'uuid'
 
-import type { CanonicalKey, TransactionStrength } from '../../storage.types'
+import type { CanonicalKey, ITxOpPredicate, TransactionStrength } from '../../storage.types'
 import type { IOPFSTransaction, ManifestEntry, WALOp } from './opfs.types'
 
 /**
@@ -147,12 +147,16 @@ export class OPFSTransaction implements IOPFSTransaction {
    * Exposed as `readonly ops` on {@link IOPFSTransaction} for inspection;
    * external callers must not mutate this array.
    */
-  readonly ops: WALOp[] = []
+  private readonly _ops: WALOp[] = []
 
   /**
    * Flag for open/close status
    */
   private _settled = false
+
+  get operations() {
+    return this._ops as Readonly<WALOp[]>
+  }
 
   /**
    * @param _onCommit   - Provided by {@link OPFSBackend._commitTransaction}.
@@ -188,7 +192,7 @@ export class OPFSTransaction implements IOPFSTransaction {
     meta:        ManifestEntry,
   ): void {
     this._assertOpen()
-    this.ops.push({ kind: 'write', key, filePath, payloadB64, meta })
+    this._ops.push({ kind: 'write', key, filePath, payloadB64, meta })
   }
 
   /**
@@ -199,7 +203,7 @@ export class OPFSTransaction implements IOPFSTransaction {
    */
   bufferDelete(key: CanonicalKey, filePath: string): void {
     this._assertOpen()
-    this.ops.push({ kind: 'delete', key, filePath })
+    this._ops.push({ kind: 'delete', key, filePath })
   }
 
   /**
@@ -210,7 +214,7 @@ export class OPFSTransaction implements IOPFSTransaction {
    */
   bufferClear(prefix?: string): void {
     this._assertOpen()
-    this.ops.push({ kind: 'clear', prefix })
+    this._ops.push({ kind: 'clear', prefix })
   }
 
   // ── ITransaction ──────────────────────────────────────────────────────────
@@ -232,7 +236,7 @@ export class OPFSTransaction implements IOPFSTransaction {
   async commit(): Promise<void> {
     this._assertOpen()
     this._settled = true
-    await this._onCommit(this.id, this.ops)
+    await this._onCommit(this.id, this._ops)
   }
 
   /**
@@ -246,11 +250,39 @@ export class OPFSTransaction implements IOPFSTransaction {
    *
    * After this resolves, the transaction is settled and cannot be reused.
    */
-  async rollback(): Promise<void> {
+  async rollback(token?: ITxOpPredicate | string | number): Promise<void | Readonly<WALOp>[]> {
     this._assertOpen()
-    this._settled = true
-    this.ops.length = 0
-    this._onRollback(this.id)
+    if(!token) {
+      this._settled = true
+      this._ops.length = 0
+      this._onRollback(this.id)
+    } else {
+      return new Promise((resolve, reject) => {
+        try {
+          const toBeDeleted: number[] = []
+          if(typeof token === 'number') {
+            const op = this._ops[token]
+            if(op) toBeDeleted.push(token)
+          } else {
+            for (let i = 0; i < this._ops.length; i++) {
+              const op = this._ops[i]
+              if((typeof token === 'string' && op.key === token) ||
+                typeof token === 'function' && !!token(op)
+              ) {
+                toBeDeleted.push(i)
+              }
+            }
+          }
+          const deleted = []
+          for (const i of toBeDeleted) {
+            deleted.push(Object.freeze(this._ops.splice(i, 1)[0]))
+          }
+          resolve(deleted)
+        } catch (error) {
+          reject(error)
+        }
+      })
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

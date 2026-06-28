@@ -569,19 +569,60 @@ export interface ReadOptions {
   signal?: AbortSignal
 }
 
+/**
+ * Buffered op (used by compensating + best-effort transactions)
+ */
+export type TransactionOpKind = 'write' | 'delete' | 'clear'
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Transaction handle
 // Returned by beginTransaction(); callers hold it until commit/rollback.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ITransaction {
-  readonly id: string
-  readonly strength: TransactionStrength
+  readonly id: string;
+  readonly strength: TransactionStrength;
+  /** An ordered list of all the operations to be (or already/potentially) performed */
+  readonly operations: readonly ITransactionOp[];
   /** Commit all ops buffered under this transaction. */
-  commit(): Promise<void>
-  /** Roll back all ops buffered under this transaction. */
-  rollback(): Promise<void>
+  commit(): Promise<void>;
+  /**
+   * @summary Roll back all (or specified) ops buffered under this transaction
+   *
+   * @description When no argument is provided, rolls back **all** ops buffered
+   * under this transaction. When a string is provided, then all ops whose
+   * canonical key equals the argument will be removed from operations to be
+   * committed. When a number is provided, then the op at that index is removed
+   * from operations to be committed. When a predicate is provided, then all ops
+   * for which the predicated return truthy are removed from operations to be
+   * committed
+   *
+   * Note: If `token` is provided, {@linkcode commit} and {@linkcode rollback} may
+   * be destabilized and behaviour undefined. This happens because, internally, the
+   * operation pipeline has been mutated by this action, hence behaviour changed.
+   * See the doc of the implementation in use. This may never rollback (close)
+   * this transaction  even if all pending ops are removed by this action. To
+   * perform a complete rollback, call this without the argument
+   *
+   * @param {ITxOpPredicate | string | number} [token] the token used to increase
+   * the precision of this removal
+   *
+   * @returns {Promise<void | Readonly<ITransactionOp>>[]} `void`, when no argument
+   * is provided, else returns the cancelled operation(s)
+   */
+  rollback(token?: ITxOpPredicate | string | number): Promise<void | Readonly<ITransactionOp>[]>;
 }
+
+/**
+ * An entry within a transaction
+ */
+export interface ITransactionOp {
+  kind: TransactionOpKind;
+  key?: CanonicalKey;
+  prefix?: string;
+}
+
+export type ITxOpPredicate = (op: ITransactionOp) => boolean;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The unified backend interface
@@ -864,6 +905,16 @@ export interface IStorageBackend<TRaw = string> {
    *   it, the returned promise rejects.
    */
   beginTransaction(strength?: TransactionStrength): Promise<ITransaction>
+
+  /**
+   * Checks if there is any active transaction or (if argument is provided)
+   * if the specified transaction is currently active
+   *
+   * @param {string} [txId] the transaction (if known) identifier
+   *
+   * @return {boolean}
+   */
+  isTransactionActive(txId?: string): boolean;
 
   // ── Quota ─────────────────────────────────────────────────────────────────
 
