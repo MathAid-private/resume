@@ -216,6 +216,7 @@ async function initialize() {
 async function initAndProbe() {
   loading.value = true
   await destroyTransaction()
+  await backend.value?.close()
   backend.value = new MemoryBackend()
   initialized.value = false
   try {
