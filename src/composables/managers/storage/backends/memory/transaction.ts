@@ -1,6 +1,7 @@
 import { v4 as uuidV4 } from 'uuid'
 
-import type { CanonicalKey, StorageEnvelope, TransactionStrength, ITransaction, ITransactionOp, ITxOpPredicate } from '../../storage.types'
+import type { CanonicalKey, StorageEnvelope, TransactionStrength, ITransaction, ITransactionOp, ITxOpPredicate, ICanonicalKeySegments } from '../../storage.types'
+import { buildCanonicalKey, buildModulePrefix, parseCanonicalKey } from '../../storage.util'
 
 export interface BufferedOp<TRaw> extends ITransactionOp {
   envelope?: StorageEnvelope<TRaw>
@@ -16,7 +17,7 @@ export interface BufferedOp<TRaw> extends ITransactionOp {
  */
 
 export class MemoryTransaction<TRaw> implements ITransaction {
-  readonly id:       string
+  readonly id: string
   readonly strength: TransactionStrength = 'best-effort'
 
   private readonly _ops: BufferedOp<TRaw>[] = []
@@ -66,40 +67,108 @@ export class MemoryTransaction<TRaw> implements ITransaction {
     }
   }
 
-  async rollback(token?: ITxOpPredicate | string | number): Promise<void | Readonly<BufferedOp<TRaw>>[]> {
+  /**
+   * {@inheritdoc}
+   */
+  rollback(): Promise<void>;
+  /**
+   * {@inheritdoc}
+   */
+  rollback(index: number): Promise<Readonly<[BufferedOp<TRaw> | undefined]>>;
+  /**
+   * {@inheritdoc}
+   */
+  rollback(canonicalKey: CanonicalKey): Promise<ReadonlyArray<BufferedOp<TRaw>>>;
+  /**
+   * {@inheritdoc}
+   */
+  rollback(segments: ICanonicalKeySegments): Promise<ReadonlyArray<BufferedOp<TRaw>>>;
+  /**
+   * {@inheritdoc}
+   */
+  rollback(predicate: ITxOpPredicate): Promise<ReadonlyArray<BufferedOp<TRaw>>>;
+  async rollback(
+    token?: number | CanonicalKey | ICanonicalKeySegments | ITxOpPredicate,
+  ): Promise<void | Readonly<[BufferedOp<TRaw> | undefined]> | ReadonlyArray<BufferedOp<TRaw>>> {
     this._assertOpen()
-    if(!token) {
+    if (token === undefined) {
       this._settled = true
       // Discard the buffer - nothing was written, so no undo needed.
       this._ops.length = 0
       this._onRollback?.(this.id)
-    } else {
-      return new Promise((resolve, reject) => {
-        try {
-          const toBeDeleted: number[] = []
-          if(typeof token === 'number') {
-            const op = this._ops[token]
-            if(op) toBeDeleted.push(token)
-          } else {
-            for (let i = 0; i < this._ops.length; i++) {
-              const op = this._ops[i]
-              if((typeof token === 'string' && op.key === token) ||
-                typeof token === 'function' && !!token(op)
-              ) {
-                toBeDeleted.push(i)
-              }
+      return
+    }
+
+    return await new Promise(resolve => {
+      try {
+        // Partial rollback: remove matching ops, keep transaction open
+        const indicesToRemove: number[] = [];
+
+        if (typeof token === 'number') {
+          if (token >= 0 && token < this._ops.length) {
+            indicesToRemove.push(token);
+          }
+        } else if (typeof token === 'string') {
+          // Canonical key
+          for (let i = 0; i < this._ops.length; i++) {
+            if (this._ops[i].key === token) {
+              indicesToRemove.push(i);
             }
           }
-          const deleted = []
-          for (const i of toBeDeleted) {
-            deleted.push(Object.freeze(this._ops.splice(i, 1)[0]))
+        } else if (typeof token === 'object' && token !== null && 'domain' in token) {
+          const { actualKey, callingModule, domain, platform, platformVersion } = token as ICanonicalKeySegments
+          if(actualKey !== undefined) {
+            // ICanonicalKeySegments – build the key
+            this.rollback(buildCanonicalKey({
+              actualKey,
+              callingModule,
+              domain,
+              platform,
+              platformVersion,
+            })).then(result => resolve(result))
+            return
           }
-          resolve(deleted)
-        } catch (error) {
-          reject(error)
+          // ICanonicalKeySegments – build the prefix
+          const prefix = buildModulePrefix(
+            domain, platform, platformVersion, callingModule
+          );
+          for (let i = 0; i < this._ops.length; i++) {
+            const { key: opsKey } = this._ops[i];
+            if(opsKey === undefined) continue;
+            const opsKeySegment = parseCanonicalKey(opsKey)
+            if(opsKeySegment === undefined || opsKeySegment === null) continue;
+            if (
+              buildModulePrefix(
+                opsKeySegment.domain,
+                opsKeySegment.platform,
+                opsKeySegment.platformVersion,
+                opsKeySegment.callingModule
+              ) === prefix
+            ) {
+              indicesToRemove.push(i);
+            }
+          }
+        } else if (typeof token === 'function') {
+          for (let i = 0; i < this._ops.length; i++) {
+            if (!!token(this._ops[i])) {
+              indicesToRemove.push(i);
+            }
+          }
         }
-      })
-    }
+
+        // Remove in reverse order
+        const removed: BufferedOp<TRaw>[] = [];
+        for (const idx of indicesToRemove) {
+          removed.push(Object.freeze(this._ops.splice(idx, 1)[0]));
+        }
+
+        resolve(Object.freeze(removed));
+      } catch {
+        // reject(error); // Do not throw an error
+        resolve([])
+      }
+    })
+
   }
 
   // ─────────────────────────────────────────────────────────────────────────

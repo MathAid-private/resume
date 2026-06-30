@@ -1,3 +1,4 @@
+import { anyNil, isNil } from '@/libs'
 import type { CanonicalKey, ICanonicalKeySegments, Platform } from './storage.types'
 
 const PLATFORMS = new Set<Platform>([
@@ -76,11 +77,25 @@ export function parseCanonicalKey(key: string): ICanonicalKeySegments | null {
  * Build a prefix string for querying all keys within a given module scope.
  * e.g. `"myapp:chrome:130:auth-module:"` matches every key that module wrote.
  */
+export function buildModulePrefix(path: ICanonicalKeySegments): string;
+/**
+ * Build a prefix string for querying all keys within a given module scope.
+ * e.g. `"myapp:chrome:130:auth-module:"` matches every key that module wrote.
+ */
 export function buildModulePrefix(
   domain: string,
   platform: Platform,
   platformVersion: number,
   callingModule: string,
-): string {
+): string;
+export function buildModulePrefix(...args: unknown[]): string {
+  const [ domain, platform, platformVersion, callingModule ] = args
+  if(isNil(domain)) return ""
+  else if(typeof domain === 'object' && 'domain' in domain) {
+    const { domain, platform, platformVersion, callingModule } = args[0] as ICanonicalKeySegments
+    return `${domain}${SEP}${platform}${SEP}${platformVersion}${SEP}${callingModule}${SEP}`
+  } else if(anyNil(platform, platformVersion, callingModule)) {
+    return ""
+  }
   return `${domain}${SEP}${platform}${SEP}${platformVersion}${SEP}${callingModule}${SEP}`
 }

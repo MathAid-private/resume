@@ -1,6 +1,9 @@
 
 import type { ZodType, z } from "zod"
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { buildModulePrefix, parseCanonicalKey } from "./storage.util"
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Canonical key
 // ─────────────────────────────────────────────────────────────────────────────
@@ -587,6 +590,211 @@ export interface ITransaction {
   /** Commit all ops buffered under this transaction. */
   commit(): Promise<void>;
   /**
+   * @summary Roll back **all** ops buffered under this transaction
+   *
+   * @description Rolls back **all** ops buffered under this transaction and
+   * effectively closes this transaction, releasing all resources allocated
+   * to it
+   *
+   * It is expected that this must not throw
+   *
+   * @example
+   * Simple use case
+   * ```
+   * const keySegments = getSegments();
+   * const backend = getBackend();
+   * const tx = await backend.beginTransaction();
+   * // { value: number; key: string; }[]
+   * const items = await fetchItems();
+   * for(let i = 0; i < items.length; i++) {
+   *   const item = items[i];
+   *   try {
+   *     const key = buildCanonicalKey({ ...keySegments, actualKey: item.key });
+   *     const envelope = buildEnvelopeFrom(item);
+   *     await backend.write(key, envelope, { transactionId: tx.id })
+   *   } catch {
+   *    x.rollback(); // Kills this transaction
+   *  }
+   * }
+   * ```
+   *
+   * @returns {Promise<void>} `void` and closes this transaction, invalidating it
+   */
+  rollback(): Promise<void>;
+  /**
+   * @description Removes a single transaction operation specified by the
+   * index argument. The index is ordered from the initial operation (first,
+   * index 0) to the latest (last, n - 1).
+   *
+   * This does **not** close the transaction neither does it invalidate it.
+   * This is meant for the convenience of cancelling a single operation
+   * before a commit is executed on this transaction.
+   *
+   * @example
+   * Simple use case
+   * ```
+   * const keySegments = getSegments();
+   * const backend = getBackend();
+   * const tx = await backend.beginTransaction();
+   * // { value: number; key: string; }[]
+   * const items = await fetchItems();
+   * for(let i = 0; i < items.length; i++) {
+   *   const item = items[i];
+   *   try {
+   *     const key = buildCanonicalKey({ ...keySegments, actualKey: item.key });
+   *     const envelope = buildEnvelopeFrom(item);
+   *     await backend.write(key, envelope, { transactionId: tx.id })
+   *   } catch { tx.rollback(); }
+   * }
+   *
+   * // ...sometime later
+   * await tx.rollback(1); // Removes the 2nd operation from a live transaction
+   * ```
+   * @param {number} index the placement of the operation to be removed
+   *
+   * @returns {Readonly<[ITransactionOp | undefined]>} a tuple with the removed
+   * operation. This may not throw, instead should return an `undefined` element.
+   * See implementation note
+   *
+   * @see {@linkcode commit} within the implementation itself as this may cause
+   * it's behaviour to be undefined
+   * @see {@linkcode rollback} (no-arg) within the implementation itself as this
+   * may cause it's behaviour to be undefined
+   */
+  rollback(index: number): Promise<Readonly<[ITransactionOp | undefined]>>;
+  /**
+   * @description Removes all transaction operations whose canonical key
+   * matches the argument and returns them in a readonly array. This does
+   * **not** close the transaction neither does it invalidate it.
+   *
+   * This is meant for the convenience of cancelling operation(s) before a commit
+   * is executed on this transaction
+   *
+   * @example
+   * Simple use case
+   * ```
+   * const keySegments = getSegments();
+   * const backend = getBackend();
+   * const tx = await backend.beginTransaction();
+   * // { value: number; key: string; }[]
+   * const items = await fetchItems();
+   * for(let i = 0; i < items.length; i++) {
+   *   const item = items[i];
+   *   try {
+   *     const key = buildCanonicalKey({ ...keySegments, actualKey: item.key });
+   *     const envelope = buildEnvelopeFrom(item);
+   *     await backend.write(key, envelope, { transactionId: tx.id })
+   *   } catch { tx.rollback(); }
+   * }
+   *
+   * // ...sometime later
+   * await tx.rollback(someCanonicalKey); // Removes all uncommitted
+   *                                     // operations from a live transaction
+   * ```
+   * @param {CanonicalKey} canonicalKey the key to match internal operations
+   *
+   * @returns {ReadonlyArray<ITransactionOp>} a tuple of all removed operations
+   * This may not throw, but return an empty array. See implementation note
+   *
+   * @see {@linkcode commit} within the implementation itself as this may cause
+   * it's behaviour to be undefined
+   * @see {@linkcode rollback} (no-arg) within the implementation itself as this
+   * may cause it's behaviour to be undefined
+   */
+  rollback(canonicalKey: CanonicalKey): Promise<ReadonlyArray<ITransactionOp>>;
+  /**
+   * @description Removes all transaction operations whose canonical key
+   * matches/begins-with the argument and returns them in a readonly array. When
+   * the {@linkcode ICanonicalKeySegments.actualKey} is omitted, all operations
+   * whose prefix match the prefix generated from the argument are removed. This
+   * does **not** close the transaction neither does it invalidate it.
+   *
+   * This is meant for the convenience of cancelling operation(s) before a commit
+   * is executed on this transaction
+   *
+   * @example
+   * Simple use case
+   * ```
+   * const keySegments = getSegments();
+   * const backend = getBackend();
+   * const tx = await backend.beginTransaction();
+   * // { value: number; key: string; }[]
+   * const items = await fetchItems();
+   * for(let i = 0; i < items.length; i++) {
+   *   const item = items[i];
+   *   try {
+   *     const key = buildCanonicalKey({ ...keySegments, actualKey: item.key });
+   *     const envelope = buildEnvelopeFrom(item);
+   *     await backend.write(key, envelope, { transactionId: tx.id })
+   *   } catch { tx.rollback(); }
+   * }
+   *
+   * // ...sometime later
+   * await tx.rollback(omit(keySegments, ['actualKey'])); // Removes all operations
+   *                                                      // from this live transaction
+   * ```
+   * @param {ICanonicalKeySegments} path the key segments defining the absolute
+   * path for key/prefix
+   *
+   * @returns {ReadonlyArray<ITransactionOp>} a tuple of all removed operations
+   * This may not throw, but return an empty array. See implementation note
+   *
+   * @see {@linkcode buildModulePrefix} for how prefixes are formed
+   * @see {@linkcode parseCanonicalKey} for how prefixes are formed
+   * @see {@linkcode ICanonicalKeySegments}
+   * @see {@linkcode CanonicalKey}
+   * @see {@linkcode commit} within the implementation itself as this may cause
+   * it's behaviour to be undefined
+   * @see {@linkcode rollback} (no-arg) within the implementation itself as this
+   * may cause it's behaviour to be undefined
+   */
+  rollback(path: ICanonicalKeySegments): Promise<ReadonlyArray<ITransactionOp>>;
+  /**
+   * @description Removes all transaction operations matching the condition in the
+   * predicate. This does **not** close the transaction neither does it invalidate
+   * it.
+   *
+   * This is meant for the convenience of cancelling operation(s) before a commit
+   * is executed on this transaction
+   *
+   * @example
+   * Simple use case
+   * ```
+   * const keySegments = getSegments();
+   * const backend = getBackend();
+   * const tx = await backend.beginTransaction();
+   * // { value: number; key: string; }[]
+   * const items = await fetchItems();
+   * for(let i = 0; i < items.length; i++) {
+   *   const item = items[i];
+   *   try {
+   *     const key = buildCanonicalKey({ ...keySegments, actualKey: item.key });
+   *     const envelope = buildEnvelopeFrom(item);
+   *     await backend.write(key, envelope, { transactionId: tx.id })
+   *   } catch { tx.rollback(); }
+   * }
+   *
+   * // ...sometime later
+   * await tx.rollback(op => op.kind === 'delete'); // Removes all delete operations
+   *                                                // from this live transaction
+   * ```
+   * @param {ITxOpPredicate} predicate the key segments defining the absolute
+   * path for key/prefix
+   *
+   * @returns {ReadonlyArray<ITransactionOp>} a tuple of all removed operations
+   * This may not throw, but return an empty array. See implementation note
+   *
+   * @see {@linkcode buildModulePrefix} for how prefixes are formed
+   * @see {@linkcode parseCanonicalKey} for how prefixes are formed
+   * @see {@linkcode ICanonicalKeySegments}
+   * @see {@linkcode CanonicalKey}
+   * @see {@linkcode commit} within the implementation itself as this may cause
+   * it's behaviour to be undefined
+   * @see {@linkcode rollback} (no-arg) within the implementation itself as this
+   * may cause it's behaviour to be undefined
+   */
+  rollback(predicate: ITxOpPredicate): Promise<ReadonlyArray<ITransactionOp>>;
+  /*
    * @summary Roll back all (or specified) ops buffered under this transaction
    *
    * @description When no argument is provided, rolls back **all** ops buffered
@@ -594,7 +802,7 @@ export interface ITransaction {
    * canonical key equals the argument will be removed from operations to be
    * committed. When a number is provided, then the op at that index is removed
    * from operations to be committed. When a predicate is provided, then all ops
-   * for which the predicated return truthy are removed from operations to be
+   * for which the predicate returns truthy are removed from operations to be
    * committed
    *
    * Note: If `token` is provided, {@linkcode commit} and {@linkcode rollback} may
@@ -610,7 +818,7 @@ export interface ITransaction {
    * @returns {Promise<void | Readonly<ITransactionOp>>[]} `void`, when no argument
    * is provided, else returns the cancelled operation(s)
    */
-  rollback(token?: ITxOpPredicate | string | number): Promise<void | Readonly<ITransactionOp>[]>;
+  // rollback(token?: ITxOpPredicate | string | number): Promise<void | Readonly<ITransactionOp>[]>;
 }
 
 /**

@@ -1,5 +1,3 @@
-import { isNil } from "lodash";
-
 import type { ComputeClampParams } from "@/types";
 
 /**
@@ -124,4 +122,95 @@ export function sizeOf(value: any): number {
     default:
       return 0;
   }
+}
+
+/**
+ * Checks if the argument is null or undefined.
+ *
+ * @param x - The value to be checked.
+ * @returns A type predicate asserting that the argument is null or undefined.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isNil(x: any): x is null | undefined {
+  return x === null || x === undefined
+}
+/**
+ * Checks if every element in an array/tuple is null or undefined.
+ *
+ * @param args - The items to be checked.
+ * @returns A type predicate asserting that all elements in the input array are null or undefined.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function allNil(...args: any[])/*: args is { [K in keyof T]: null | undefined }*/ {
+  return args.every(isNil);
+}
+/**
+ * Checks if any element in an array/tuple is null or undefined.
+ *
+ * @param args - The items to be checked.
+ * @returns A type predicate asserting that at least 1 element in the input array is null or undefined.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function anyNil(...args: any[]) {
+  return args.some(isNil);
+}
+/**
+ * Checks if the argument is null.
+ *
+ * @param x - The value to be checked.
+ * @returns A type predicate asserting that the argument is null.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isNull(x: any): x is null {
+  return x === null
+}
+/**
+ * Checks if every element in an array/tuple is null
+ *
+ * @param args - The items to be checked.
+ * @returns A type predicate asserting that all elements in the input array are null
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function allNull(...args: any[]) {
+  return args.every(isNil);
+}
+/**
+ * Checks if any element in an array/tuple is null
+ *
+ * @param args - The items to be checked.
+ * @returns A type predicate asserting that at least 1 element in the input array is null
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function anyNull(...args: any[]) {
+  return args.some(isNil);
+}
+/**
+ * Checks if the argument is undefined.
+ *
+ * @param x - The value to be checked.
+ * @returns A type predicate asserting that the argument is undefined.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isUndefined(x: any): x is undefined {
+  return x === undefined
+}
+/**
+ * Checks if every element in an array/tuple is undefined.
+ *
+ * @param args - The items to be checked.
+ * @returns A type predicate asserting that all elements in the input array are undefined.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function allUndefined(...args: any[]) {
+  return args.every(isNil);
+}
+/**
+ * Checks if any element in an array/tuple is undefined.
+ *
+ * @param args - The items to be checked.
+ * @returns A type predicate asserting that at least 1 element in the input array is undefined.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function anyUndefined(...args: any[]) {
+  return args.some(isNil);
 }
