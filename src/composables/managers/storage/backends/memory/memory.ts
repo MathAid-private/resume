@@ -31,7 +31,7 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  * |   storage.set(key, value, schema)      storage.transaction(block)    |
  * |   storage.get(key, schema)             storage.delete(key)           |
  * +----------------------------------------------------------------------+
- *                                        |  IStorageFacade
+ *                                       ||  IStorageFacade
  *                                       \/
  * +----------------------------------------------------------------------+
  * |                         FACADE  [NOT YET BUILT]                      |
@@ -42,7 +42,7 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  * |    every op in the block, then commit() or rollback() on exit        |
  * |  • Forwards all ops to the pipeline                                  |
  * +----------------------------------------------------------------------+
- *                                        |  IStoragePipeline
+ *                                       ||  IStoragePipeline
  *                                       \/
  * +----------------------------------------------------------------------+
  * |                      PIPELINE  [NOT YET BUILT]                       |
@@ -61,7 +61,7 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  * |                                      6. zod.parse(result)            |
  * |                                      7. return typed value           |
  * +----------------------------------------------------------------------+
- *                                        |  IStorageBackend
+ *                                       ||  IStorageBackend
  *                                       \/
  * +----------------------------------------------------------------------+
  * |                         MemoryBackend                                |
@@ -115,8 +115,8 @@ import { MemoryTransaction, type BufferedOp } from './transaction'
  * |      × 2 (UTF-16) as byte proxy   |                                  |
  * |      vs 50 MB soft cap            |                                  |
  * +----------------------------------------------------------------------+
- *                                        |
- *                           (future)     |  BroadcastChannel
+ *                                       ||
+ *                           (future)    ||  BroadcastChannel
  *                                       \/
  *                     +-----------------------------------+
  *                     |   All connected tabs / windows    |

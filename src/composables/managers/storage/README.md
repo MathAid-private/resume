@@ -1,6 +1,9 @@
 # Storage Manager
+```
+ /\        /\   
  ||   ||   ||  ||
  \/   \/   \/  \/
+```
 - Serialization
 - Encryption
 - Compression
