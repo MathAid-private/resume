@@ -3,7 +3,7 @@ import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 
 import type { BackendKind, CanonicalKey, StorageEnvelope, TransactionStrength } from "../../storage.types"
-import type { MemoryTransaction } from "./transaction"
+import type { MemoryTransaction } from "./memory.transaction"
 
 function composeStore() {
   const kind                                     = computed<BackendKind>(() => 'memory')

@@ -4,7 +4,6 @@ import type {
   CapabilityResult,
   EvictionPolicy,
   IStorageBackend,
-  ITransaction,
   QuotaEstimate,
   ReadOptions,
   StorageEnvelope,
@@ -14,7 +13,7 @@ import type {
 } from '../../storage.types'
 import { useMemoryStore, type MemoryStore } from './memory.store'
 
-import { MemoryTransaction, type BufferedOp } from './transaction'
+import { MemoryTransaction, type BufferedOp } from './memory.transaction'
 
 /**
  * Memory backend
@@ -305,7 +304,8 @@ export class MemoryBackend implements IStorageBackend<unknown> {
 
   // ── Transactions ──────────────────────────────────────────────────────────
 
-  async beginTransaction(strength?: TransactionStrength): Promise<ITransaction> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async beginTransaction(strength?: TransactionStrength): Promise<MemoryTransaction<any>> {
     this._assertInitialized()
 
     // Memory can only offer best-effort. Reject if the caller demands more.
