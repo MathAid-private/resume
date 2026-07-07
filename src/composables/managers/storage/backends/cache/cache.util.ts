@@ -1,28 +1,65 @@
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// URL mapping
+// URL key helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { CanonicalKey, StorageEnvelope } from "../../storage.types"
-import { CACHE_URL_BASE, HDR_BACKEND, HDR_EXPIRES_AT, HDR_SCHEMA_VERSION, HDR_WEIGHT, HDR_WRITTEN_AT } from "./cache.const"
+import { CACHE_KEY_NAMESPACE, HDR_BACKEND, HDR_EXPIRES_AT, HDR_SCHEMA_VERSION, HDR_WEIGHT, HDR_WRITTEN_AT } from "./cache.const"
 
 /**
- * Convert a canonical key to the fake internal URL used as the cache key.
+ * @summary Convert a canonical storage key to a synthetic URL suitable for
+ * use as a `Cache.match` / `Cache.put` key.
+ *
+ * @description
+ * The Cache API requires `Request` objects (or URL strings) as keys. Canonical
+ * storage keys like `'myapp:chrome:130:auth:user-session'` are not valid URLs
+ * and cannot be used directly. This function wraps each canonical key inside a
+ * synthetic URL by appending it as the path segment of the
+ * `CACHE_KEY_NAMESPACE` origin:
+ *
+ * ```
+ * 'myapp:chrome:130:auth:user-session'
+ *                ↓
+ * 'https://storage.internal/myapp:chrome:130:auth:user-session'
+ * ```
+ *
+ * The canonical key is URL-encoded to ensure colons and other characters that
+ * are technically valid in URL paths (RFC 3986) do not confuse parsers. The
+ * `urlToCanonicalKey` function reverses this encoding.
+ *
+ * @param key - A valid canonical key string.
+ * @returns   A synthetic URL string that the Cache API will accept.
+ *
+ * @see {@link urlToCanonicalKey} for the inverse operation.
+ * @see {@link CACHE_KEY_NAMESPACE} for the namespace constant.
  */
-export function keyToUrl(key: CanonicalKey): string {
-  return `${CACHE_URL_BASE}${encodeURIComponent(key)}`
+export function canonicalKeyToURL(key: CanonicalKey): string {
+  return `${CACHE_KEY_NAMESPACE}/${encodeURIComponent(key)}`
 }
 
 /**
- * Recover the canonical key from the fake internal URL.
- * Returns `null` if the URL does not match the expected scheme.
+ * @summary Extract the canonical key from a synthetic cache URL produced by
+ * `canonicalKeyToURL`.
+ *
+ * @description
+ * Strips the `CACHE_KEY_NAMESPACE` prefix and one leading slash from the URL,
+ * then URL-decodes the remainder to recover the original canonical key string.
+ *
+ * Returns `null` if the URL does not start with the expected namespace prefix,
+ * so callers can safely filter out any genuine network-response URLs that may
+ * have been inadvertently stored in the same cache bucket.
+ *
+ * @param url - A URL string from a `Cache.keys()` `Request.url` field.
+ * @returns   The canonical key, or `null` if the URL is not from this backend.
+ *
+ * @see {@link canonicalKeyToURL} for the forward direction.
  */
-export function urlToKey(url: string): CanonicalKey | null {
-  if (!url.startsWith(CACHE_URL_BASE)) return null
-  return decodeURIComponent(url.slice(CACHE_URL_BASE.length)) as CanonicalKey
+export function urlToCanonicalKey(url: string): CanonicalKey | null {
+  const prefix = `${CACHE_KEY_NAMESPACE}/`
+  if (!url.startsWith(prefix)) return null
+  return decodeURIComponent(url.slice(prefix.length)) as CanonicalKey
 }
-
 // ── Helper: build a Response from an envelope ─────────────────────────────
 
 export function buildResponse(envelope: StorageEnvelope<string>): Response {
