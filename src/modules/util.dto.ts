@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ZodType } from "zod"
 
 export type JSType = 'boolean' | 'number' | 'string' | 'symbol' | 'bigint' | 'object' | 'function' | 'undefined'
@@ -110,9 +111,7 @@ export type UndefinedPart<T> = T extends object
  * ```
  * @typeparam T The object type to extract undefinable properties from
  */
-export type UndefinablePart<T> = T extends object
-  ? { [K in keyof T as undefined extends T[K] ? K : never]: T[K] }
-  : never;
+export type UndefinablePart<T> = UndefinedPart<T>;
 
 /**
  * Combines both nullable and undefinable properties into a single mapped type.
@@ -143,8 +142,9 @@ export type NullishPart<T> = T extends object ? NullablePart<T> & UndefinablePar
 /**
  * Determines if a type can be null or undefined.
  *
+ * `false` if T extends null | undefined | never, true otherwise
+ *
  * @template T - The type to check for nullability
- * @returns {boolean} false if T extends null | undefined | never, true otherwise
  *
  * @example
  * type A = IsNullable<string>;        // true
@@ -157,7 +157,7 @@ export type IsNullable<T> = null extends T ? true : false;
 /** Alias for {@linkcode IsNullable} */
 export type IsNull<T> = IsNullable<T>;
 /**
- * The same as {@linkcode IsNullable} but for 1undefined` instead of `null`
+ * The same as {@linkcode IsNullable} but for undefined` instead of `null`
  *
  * @template T the type to check for `undefined`
  */
@@ -210,7 +210,7 @@ export type IsFunction<T> = Function extends T ? true : false;
  * @typeParam T - The subject type under validation.
  * @public
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type IsArray<T> = Array<any> extends T ? true : false;
 export type IsObject<T> = object extends T ? true : false;
 /**
@@ -236,8 +236,9 @@ export type IsArrayType<TArray, TTarget> = [IsArray<TTarget>, ArrayType<TArray, 
  * Determines whether a boolean field is optional (nullable) in the database schema.
  * Used to select between nullable and non-nullable filter types.
  *
+ * `true` if T includes null or undefined, false for strict boolean
+ *
  * @template T - A boolean type, potentially union with null/undefined
- * @returns {boolean} true if T includes null or undefined, false for strict boolean
  *
  * @example
  * type A = IsNullableBoolean<boolean>;        // false
@@ -259,8 +260,9 @@ export type IsNullableBoolean<T> = boolean extends T
  * Determines whether a numeric field is optional (nullable) in the database schema.
  * Used to select between nullable and non-nullable filter types.
  *
+ * `true` if T includes null or undefined, false for strict number
+ *
  * @template T - A number type, potentially union with null/undefined
- * @returns {boolean} true if T includes null or undefined, false for strict number
  *
  * @example
  * type A = IsNullableInt<number>;        // false
@@ -282,8 +284,9 @@ export type IsNullableInt<T> = number extends T
  * Determines whether a string field (including enums and IDs) is optional (nullable) in the database schema.
  * Used to select between nullable and non-nullable filter types.
  *
+ * `true` if T includes null or undefined, false for strict string
+ *
  * @template T - A string type, potentially union with null/undefined
- * @returns {boolean} true if T includes null or undefined, false for strict string
  *
  * @example
  * type A = IsNullableString<string>;        // false
@@ -305,8 +308,9 @@ export type IsNullableString<T> = string extends T
  * Determines whether a DateTime field is optional (nullable) in the database schema.
  * Used to select between nullable and non-nullable filter types.
  *
+ * `true` if T includes null or undefined, false for strict Date
+ *
  * @template T - A Date type, potentially union with null/undefined
- * @returns {boolean} true if T includes null or undefined, false for strict Date
  *
  * @example
  * type A = IsNullableDate<Date>;        // false
@@ -344,7 +348,7 @@ export type IsNullableDate<T> = Date extends T
  * @template Target - The value type to search for within the object's properties.
  */
 export type ContainsType<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   T extends Record<string | number | symbol, any>,
   Target,
 > = Target extends T[keyof T] ? true : false;
@@ -371,7 +375,7 @@ export type ContainsType<
  * @template T - The object to scan.
  * @template Target - The exact type to look for.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type ContainsExactType<T extends Record<string, any>, Target> = true extends {
   [K in keyof T]: [Target, T[K]] extends [T[K], Target] ? true : false;
 }[keyof T]
@@ -420,4 +424,187 @@ export type RequireWithDependency<T, ConditionProps extends keyof T, RequiredPro
   | (Omit<T, ConditionProps> & { [P in ConditionProps]?: never })
   | (T & Required<Pick<T, RequiredProps>>);
 
-export type FunctionLike<T extends unknown[] = never[], R = unknown> = (...args: T) => R
+/**
+ * @summary Defines a generic shape for executable callback functions.
+ *
+ * @description
+ * A loose but typesafe function shape capturing parameter arrays and returns.
+ * - **Generics**: `T` defaults to `never[]` to represent open-ended parameter layouts if left unconfigured. `R` defaults to `unknown` to maximize return versatility.
+ *
+ * Used to type-constrain execution utility hooks, ensuring that any mapped function wrapper mirrors input properties perfectly while allowing accurate `this` extraction.
+ *
+ * @template T - Array representing the explicit types of parameters the function accepts.
+ * @template R - The resolved return value type of the function execution.
+ */
+export type FunctionLike<T extends unknown[] = never[], R = unknown> = (...args: T) => R;
+
+/**
+ * @summary Configuration options structure supporting standard DOM AbortSignals.
+ */
+export interface RateLimitOptions {
+  /** An optional AbortSignal to trigger automatic framework cleanup and cancellation. */
+  signal?: AbortSignal;
+}
+
+/**
+ * @summary Extended interface adding administrative control methods to synchronous rate-limited functions.
+ *
+ * @description
+ * A callable interface that mirrors the parameter signature of the wrapped function `T` while
+ * exposing a `.cancel()` administrative hook. It is the return type of {@linkcode debounce} and
+ * {@linkcode throttle}, and is the synchronous counterpart of {@linkcode CancellableAsync}.
+ *
+ * The interface has two members:
+ * - **Call signature** `(...args: Parameters<T>): void` - forwards invocations to the internal
+ *   scheduling logic with full argument and `this`-context preservation. The original return
+ *   value of `T` is discarded because execution occurs asynchronously after the rate-limit
+ *   window, after the call stack has already cleared.
+ * - **`.cancel(): boolean`** - immediately clears any pending timer without invoking the target.
+ *   Returns `true` if a scheduled execution was actively discarded, or `false` if nothing
+ *   was pending (idempotent, safe to call unconditionally).
+ *
+ * After an associated `AbortSignal` has fired, all further invocations of the call signature
+ * throw a `ReferenceError` synchronously. The `.cancel()` method remains callable but will
+ * always return `false` once the signal has already cleared internal state via the abort handler.
+ *
+ * @example
+ * // debounce - trailing-edge, returns Cancellable<T>
+ * const save = debounce((data: FormData) => api.save(data), 400);
+ *
+ * save(formData);           // schedules execution
+ * save(formData);           // resets timer; first call discarded
+ * const cleared = save.cancel(); // → true: pending timer cleared
+ * save.cancel();            // → false: nothing pending, safe no-op
+ *
+ * @example
+ * // throttle - dual-edge, returns Cancellable<T>
+ * const track = throttle((x: number, y: number) => render(x, y), 100);
+ *
+ * track(0, 0);   // fires immediately (leading edge)
+ * track(1, 1);   // cached as trailing args; timer scheduled
+ * track(2, 2);   // trailing args updated to (2, 2); no new timer
+ * // ~100ms later: render(2, 2) fires (trailing edge)
+ *
+ * @example
+ * // AbortSignal integration - invocation after abort throws
+ * const controller = new AbortController();
+ * const log = debounce((msg: string) => console.log(msg), 200, { signal: controller.signal });
+ *
+ * log('hello');
+ * controller.abort();
+ * log('world'); // throws ReferenceError: 'The input signal was already aborted prior'
+ *
+ * @template T - The wrapped function type. Constrains the call signature's parameter array and
+ * `this` type to match the original function exactly.
+ *
+ * @see {@linkcode debounce} - produces a `Cancellable<T>` with trailing-edge semantics
+ * @see {@linkcode throttle} - produces a `Cancellable<T>` with dual-edge semantics
+ * @see {@linkcode CancellableAsync} - async variant for Promise-returning functions
+ * @author MathAid
+ */
+export interface Cancellable<T extends FunctionLike<any>> {
+  (...args: Parameters<T>): void;
+  /**
+   * Immediately clears any pending scheduled execution without invoking the target function.
+   *
+   * For `throttle`, also fully resets internal timing state so the next invocation fires
+   * immediately on the leading edge, as if the throttle had just been created.
+   *
+   * @returns `true` if an active timer was discarded; `false` if nothing was pending.
+   * Safe to call unconditionally - repeated calls after cancellation always return `false`.
+   */
+  cancel(): boolean;
+}
+
+/**
+ * @summary Extended interface adding administrative control methods to async debounced functions.
+ *
+ * @description
+ * A callable interface that mirrors the parameter signature of the wrapped async function `T`,
+ * surfacing a `Promise<R>` per invocation and exposing a `.cancel()` administrative hook. It is
+ * the return type of {@linkcode debounceAsync}, and is the async counterpart of {@linkcode Cancellable}.
+ *
+ * The interface has two members:
+ * - **Call signature** `(...args: Parameters<T>): Promise<R>` - schedules the wrapped `fn` after
+ *   the debounce delay and returns a `Promise<R>` that settles when `fn` completes. Each new
+ *   invocation before the timer fires supersedes the previous one: the superseded Promise is
+ *   rejected with `"A newer invocation canceled this task."`, ensuring callers are never silently
+ *   abandoned with a permanently pending Promise.
+ * - **`.cancel(): boolean`** - immediately clears any pending timer and rejects the current
+ *   pending Promise (if any) with `"Task was explicitly canceled by the user."`. Returns `true`
+ *   if there was active pending work (timer or in-flight `fn` execution), `false` otherwise.
+ *   Safe to call unconditionally.
+ *
+ * **Promise settlement contract:**
+ * - The **final** scheduled invocation resolves with `R` (or rejects if `fn` itself throws).
+ * - **Superseded** intermediate invocations reject immediately when displaced by a newer call.
+ * - Any pending invocation rejects immediately when `.cancel()` is called.
+ * - Any pending invocation rejects immediately when the associated `AbortSignal` fires.
+ * - After an `AbortSignal` has fired, further call-signature invocations return an already-rejected
+ *   `Promise` rather than throwing synchronously (unlike the synchronous {@linkcode Cancellable}).
+ *
+ * @example
+ * // Example 1: Awaiting the final debounced result
+ * const search = debounceAsync(async (q: string) => fetchResults(q), 300);
+ *
+ * // Rapid calls - only the last one resolves; earlier ones reject
+ * search('r').catch(() => {});   // superseded → rejects
+ * search('re').catch(() => {});  // superseded → rejects
+ * const data = await search('react'); // final → resolves with fetchResults('react')
+ *
+ * @example
+ * // Example 2: Explicit cancellation
+ * const upload = debounceAsync(async (file: File) => api.upload(file), 500);
+ *
+ * const p = upload(file);
+ * vi.advanceTimersByTime(200);
+ * const wasPending = upload.cancel(); // → true; p rejects with cancellation error
+ * upload.cancel();                    // → false; nothing pending
+ *
+ * await p.catch(err => console.log(err.message));
+ * // "Debounced: Task was explicitly canceled by the user."
+ *
+ * @example
+ * // Example 3: AbortSignal integration
+ * const controller = new AbortController();
+ * const query = debounceAsync(async (val: string) => fetch(val), 400, {
+ *   signal: controller.signal,
+ * });
+ *
+ * const p = query('/api/data');
+ * controller.abort(new Error('Component unmounted'));
+ * await p.catch(err => console.log(err.message)); // 'Component unmounted'
+ *
+ * query('/api/retry'); // returns an already-rejected Promise (signal is aborted)
+ *
+ * @template T - The wrapped async function type. Constrains the call signature's parameter array
+ * and `this` type to match the original function exactly.
+ * @template R - The resolved value type of the Promise returned by `T`. Defaults to `any`.
+ *
+ * @throws {Error} The returned Promise rejects in three scenarios:
+ * - Supersession: a newer call displaces this one before the timer fires.
+ * - Cancellation: `.cancel()` is called while this invocation is pending.
+ * - Abort: the associated `AbortSignal` fires while this invocation is pending.
+ *
+ * @see {@linkcode debounceAsync} - the sole producer of `CancellableAsync<T, R>`
+ * @see {@linkcode Cancellable} - synchronous counterpart for `void`-returning rate-limited functions
+ * @author MathAid
+ */
+export interface CancellableAsync<T extends FunctionLike<any, Promise<R>>, R = any> {
+  (...args: Parameters<T>): Promise<R>;
+  /**
+   * Immediately clears any pending timer and rejects the currently pending `Promise` (if any).
+   *
+   * The rejection reason is `Error("Debounced: Task was explicitly canceled by the user.")`.
+   * If `fn` is already executing (timer has fired but Promise has not yet settled), the
+   * in-flight execution is allowed to complete naturally - only the pending-timer phase is
+   * cancellable via this method.
+   *
+   * Also removes the internal `abort` event listener from the associated `AbortSignal` (if any),
+   * making it safe to call during component teardown without risking duplicate rejections.
+   *
+   * @returns `true` if there was active pending work (timer or awaiting Promise); `false` otherwise.
+   * Safe to call unconditionally - repeated calls always return `false` after the first.
+   */
+  cancel(): boolean;
+}
