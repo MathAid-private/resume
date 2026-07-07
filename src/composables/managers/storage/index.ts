@@ -50,7 +50,7 @@ export type {
 
 // Implementations
 export { MemoryBackend } from './backends/memory/memory'
-export { MemoryTransaction } from './backends/memory/transaction'
+export { MemoryTransaction } from './backends/memory/memory.transaction'
 export { MigrationRunner } from './migration/runner'
 
 // Implementations - OPFS

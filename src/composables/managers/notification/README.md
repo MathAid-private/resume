@@ -1,4 +1,5 @@
 - Toast service
+- Banner service
 - Managing `ws://`
 - Logging (No need for a logging manager)
 
