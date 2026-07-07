@@ -9,5 +9,5 @@ export type {
   WALOpKind,
   WALWriteOp
 } from './opfs.types'
-export { OPFSTransaction } from './transaction'
+export { OPFSTransaction } from './opfs.transaction'
 

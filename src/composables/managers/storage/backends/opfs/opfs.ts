@@ -5,7 +5,6 @@ import type {
   CapabilityResult,
   EvictionPolicy,
   IStorageBackend,
-  ITransaction,
   QuotaEstimate,
   ReadOptions,
   StorageEnvelope,
@@ -40,7 +39,7 @@ import {
   writeManifest,
   writeWAL,
 } from './opfs.utils'
-import { OPFSTransaction } from './transaction'
+import { OPFSTransaction } from './opfs.transaction'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OPFSBackend
@@ -523,9 +522,14 @@ export class OPFSBackend implements IStorageBackend<string> {
    */
   async clear(
     prefix?:  string,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; transactionId?: string },
   ): Promise<void> {
     this._assertInitialized()
+    if (options?.transactionId) {
+      const tx = this._getTransaction(options.transactionId);
+      tx.bufferClear(prefix);
+      return;
+    }
 
     const toDelete: Array<{ key: CanonicalKey; filePath: string }> = []
 
@@ -637,7 +641,7 @@ export class OPFSBackend implements IStorageBackend<string> {
    *   Passing `'serializable'` throws immediately.
    * @throws {Error} If `strength === 'serializable'`.
    */
-  async beginTransaction(strength?: TransactionStrength): Promise<ITransaction> {
+  async beginTransaction(strength?: TransactionStrength): Promise<OPFSTransaction> {
     this._assertInitialized()
 
     if (strength === 'serializable') {
